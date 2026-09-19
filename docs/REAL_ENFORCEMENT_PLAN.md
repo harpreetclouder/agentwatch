@@ -21,9 +21,14 @@ Product command: **`veyra demo`**
 
 Advanced: `--mode=hook|runtime|stage6` still available.
 
-## Stage 9 (in progress)
+## Stage 9 complete
 
-Enforcement regression safety: Levels 1–3 landed (`stage9-unit-regression.test.ts`, `stage9-hook-integration.test.ts`, `stage9-runtime.test.ts` opt-in via `VEYRA_RUNTIME_TESTS=1`). CI pending.
+Enforcement regression safety:
+
+1. **Level 1 unit** — PolicyEngine allow/block/quarantine/path/scope/redaction + regressions
+2. **Level 2 hook** — real `veyra hook` PreToolUse allow + `.env` deny + malformed fail-closed
+3. **Level 3 runtime** — optional; skip unless `VEYRA_RUNTIME_TESTS=1` and `claude` CLI available
+4. **CI** — `.github/workflows/ci.yml`: install → typecheck → lint → build → test; no Claude credentials; does not set `VEYRA_RUNTIME_TESTS`
 
 ## Remaining gaps (later — do not start until requested)
 

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # version from package.json packageManager field
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # Hook integration tests spawn dist/index.js; turbo test only dependsOn ^build
+      # (dependency packages), not the CLI package's own build.
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+        # Do not set VEYRA_RUNTIME_TESTS — Level 3 live runtime stays opt-in / skipped
