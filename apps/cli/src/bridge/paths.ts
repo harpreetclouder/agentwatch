@@ -39,7 +39,7 @@ export function resolveBridgeRoot(cwd: string = process.cwd()): {
   };
 }
 
-export function isJevManagedCommand(command: string): boolean {
+export function isVeyraManagedCommand(command: string): boolean {
   return (
     command.includes(CLAUDE_BRIDGE_SCRIPT) ||
     command.includes(CODEX_BRIDGE_SCRIPT) ||

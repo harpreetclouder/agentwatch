@@ -11,7 +11,7 @@ import {
  */
 export const securityControlTamperingPolicy: Policy = {
   id: 'SECURITY_CONTROL_TAMPERING',
-  description: 'Detect attempts to modify Jev policy, config, or security state',
+  description: 'Detect attempts to modify VEYRA policy, config, or security state',
   severity: 'CRITICAL',
 
   evaluate(event: AgentEvent, context: AgentContext): SecurityDecision | null {
@@ -52,7 +52,7 @@ export const securityControlTamperingPolicy: Policy = {
         severity: 'CRITICAL',
         ruleId: 'SECURITY_CONTROL_TAMPERING',
         reason:
-          'Attempt to access or modify the Jev security control plane. ' +
+          'Attempt to access or modify the VEYRA security control plane. ' +
           'Agents cannot alter the policies that constrain them.',
         evidence,
         eventId: event.id,

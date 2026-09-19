@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync } from 'n
 import { dirname, join } from 'node:path';
 import {
   BRIDGE_MARKER,
-  isJevManagedCommand,
+  isVeyraManagedCommand,
   resolveBridgeRoot,
   type BridgeManifest,
 } from './paths.js';
@@ -51,7 +51,7 @@ exec node "${cliEntry}" hook --adapter=${adapter}
 `;
 }
 
-function jevHookHandler(scriptPath: string, statusMessage: string): HookHandler {
+function veyraHookHandler(scriptPath: string, statusMessage: string): HookHandler {
   return {
     type: 'command',
     command: `"${scriptPath}"`,
@@ -67,7 +67,7 @@ function stripManaged(groups: HookGroup[] | undefined): HookGroup[] {
   return groups
     .map((group) => {
       const hooks = (group.hooks ?? []).filter(
-        (h) => !(typeof h.command === 'string' && isJevManagedCommand(h.command)),
+        (h) => !(typeof h.command === 'string' && isVeyraManagedCommand(h.command)),
       );
       return { ...group, hooks };
     })
@@ -90,7 +90,7 @@ function ensureManagedGroup(
 }
 
 function buildClaudeHooksPatch(scriptPath: string): HooksConfig {
-  const handler = jevHookHandler(scriptPath, 'VEYRA Watchdog');
+  const handler = veyraHookHandler(scriptPath, 'VEYRA Watchdog');
   return {
     PreToolUse: [{ hooks: [handler] }],
     PostToolUse: [
@@ -119,7 +119,7 @@ function installClaudeHooks(
     }
     const settings = readJsonFile(settingsPath);
     const hooks = (settings['hooks'] as HooksConfig | undefined) ?? {};
-    const handler = jevHookHandler(scriptPath, 'VEYRA Watchdog');
+    const handler = veyraHookHandler(scriptPath, 'VEYRA Watchdog');
 
     const next: HooksConfig = {
       ...hooks,
@@ -178,7 +178,7 @@ function installCodexHooks(hooksPath: string, scriptPath: string): void {
       ? (nested as HooksConfig)
       : (file as HooksConfig);
 
-  const handler = jevHookHandler(scriptPath, 'VEYRA Watchdog');
+  const handler = veyraHookHandler(scriptPath, 'VEYRA Watchdog');
   const next: HooksConfig = {
     ...base,
     PreToolUse: ensureManagedGroup(base['PreToolUse'] ?? [], undefined, handler),
@@ -356,7 +356,7 @@ export function bridgeStatus(cwd: string = process.cwd()): {
   const claudeHooks = (claude['hooks'] as HooksConfig | undefined) ?? {};
   const claudeInstalled = Object.values(claudeHooks).some((groups) =>
     (groups ?? []).some((g) =>
-      (g.hooks ?? []).some((h) => typeof h.command === 'string' && isJevManagedCommand(h.command)),
+      (g.hooks ?? []).some((h) => typeof h.command === 'string' && isVeyraManagedCommand(h.command)),
     ),
   );
 
@@ -371,7 +371,7 @@ export function bridgeStatus(cwd: string = process.cwd()): {
       Array.isArray(groups) &&
       groups.some((g) =>
         (g.hooks ?? []).some(
-          (h) => typeof h.command === 'string' && isJevManagedCommand(h.command),
+          (h) => typeof h.command === 'string' && isVeyraManagedCommand(h.command),
         ),
       ),
   );

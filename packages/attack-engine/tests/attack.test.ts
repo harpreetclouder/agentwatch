@@ -10,7 +10,7 @@ import {
 describe('attack lab safety', () => {
   it('creates fake secrets only', () => {
     const lab = createAttackLab();
-    expect(lab.root).toContain('jev-attack-lab-');
+    expect(lab.root).toContain('veyra-attack-lab-');
     lab.cleanup();
   });
 });

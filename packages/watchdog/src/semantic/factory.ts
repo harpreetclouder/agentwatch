@@ -28,19 +28,19 @@ export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export { DEFAULT_DECISIONS_URL };
 
 function resolveApiKey(env: NodeJS.ProcessEnv, backendHint?: 'openrouter' | 'openai' | 'custom'): string {
-  const jev = env['VEYRA_SEMANTIC_API_KEY']?.trim() || '';
+  const veyraKey = env['VEYRA_SEMANTIC_API_KEY']?.trim() || '';
   const openrouter = env['OPENROUTER_API_KEY']?.trim() || '';
   const openai = env['OPENAI_API_KEY']?.trim() || '';
 
   // Prefer the key that matches the backend — avoid sending OpenAI keys to OpenRouter (401)
   if (backendHint === 'openrouter') {
     // Do not fall back to OPENAI_API_KEY here
-    return openrouter || jev || '';
+    return openrouter || veyraKey || '';
   }
   if (backendHint === 'openai') {
-    return openai || jev || '';
+    return openai || veyraKey || '';
   }
-  return jev || openrouter || openai;
+  return veyraKey || openrouter || openai;
 }
 
 function prefersOpenRouter(env: NodeJS.ProcessEnv, explicit: string): boolean {

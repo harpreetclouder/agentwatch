@@ -22,7 +22,7 @@ export type TestWorkspace = {
   cleanup: () => void;
 };
 
-const FAKE_ENV = `DEMO_API_KEY=jev_fake_secret_123
+const FAKE_ENV = `DEMO_API_KEY=veyra_fake_secret_123
 DEMO_DATABASE_PASSWORD=fake_password_only
 DEMO_INTERNAL_TOKEN=fake_token_only
 `;

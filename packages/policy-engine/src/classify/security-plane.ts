@@ -6,10 +6,11 @@ const SECURITY_PLANE_BASENAMES = new Set([
   'config.json',
 ]);
 
-const SECURITY_PLANE_SEGMENTS = new Set(['.veyra']);
+/** Primary plane `.veyra`; legacy `.jev` kept for leftover dirs during rebrand. */
+const SECURITY_PLANE_SEGMENTS = new Set(['.veyra', '.jev']);
 
 /**
- * Detect access/modification of the Jev security control plane.
+ * Detect access/modification of the VEYRA security control plane.
  */
 export function classifySecurityPlanePath(
   pathValue: string,
@@ -19,24 +20,28 @@ export function classifySecurityPlanePath(
   const segments = pathSegments(resolved).map((s) => s.toLowerCase());
   const base = basenameOf(resolved).toLowerCase();
 
-  if (segments.includes('.veyra')) {
-    return { kind: 'jev_directory', resolved };
+  if (segments.includes('.veyra') || segments.includes('.jev')) {
+    return { kind: 'veyra_directory', resolved };
   }
 
-  if (SECURITY_PLANE_BASENAMES.has(base) && segments.includes('.veyra')) {
-    return { kind: 'jev_file', resolved };
+  if (
+    SECURITY_PLANE_BASENAMES.has(base) &&
+    (segments.includes('.veyra') || segments.includes('.jev'))
+  ) {
+    return { kind: 'veyra_file', resolved };
   }
 
-  // Relative mentions of security-plane files under cwd/.veyra
-  const jevRoot = resolvePath('.veyra', workingDirectory);
-  if (isPathInside(resolved, jevRoot)) {
-    return { kind: 'inside_jev_root', resolved };
+  // Relative mentions of security-plane files under cwd/.veyra (or legacy .jev)
+  const veyraRoot = resolvePath('.veyra', workingDirectory);
+  const legacyRoot = resolvePath('.jev', workingDirectory);
+  if (isPathInside(resolved, veyraRoot) || isPathInside(resolved, legacyRoot)) {
+    return { kind: 'inside_veyra_root', resolved };
   }
 
   // Explicit relative targets like ".veyra/policies/..." before resolve edge cases
   const rawSegments = pathSegments(pathValue).map((s) => s.toLowerCase());
   if (rawSegments.some((s) => SECURITY_PLANE_SEGMENTS.has(s))) {
-    return { kind: 'jev_path_reference', resolved };
+    return { kind: 'veyra_path_reference', resolved };
   }
 
   if (
@@ -44,7 +49,12 @@ export function classifySecurityPlanePath(
     /revocation/i.test(base) ||
     (/watchdog/i.test(base) && /config/i.test(pathValue))
   ) {
-    if (rawSegments.includes('.veyra') || pathValue.includes('.veyra')) {
+    if (
+      rawSegments.includes('.veyra') ||
+      rawSegments.includes('.jev') ||
+      pathValue.includes('.veyra') ||
+      pathValue.includes('.jev')
+    ) {
       return { kind: 'security_config', resolved };
     }
   }

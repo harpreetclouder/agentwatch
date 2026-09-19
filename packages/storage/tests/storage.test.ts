@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function tempCwd(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jev-storage-'));
+  const dir = mkdtempSync(join(tmpdir(), 'veyra-storage-'));
   tempDirs.push(dir);
   return dir;
 }

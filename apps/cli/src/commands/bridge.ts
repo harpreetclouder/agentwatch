@@ -68,7 +68,7 @@ export async function cmdBridge(args: string[]): Promise<number> {
 
   if (action === 'uninstall') {
     const result = uninstallBridge();
-    console.log('Live bridge uninstalled (JEV-managed hooks removed).');
+    console.log('Live bridge uninstalled (VEYRA-managed hooks removed).');
     console.log('');
     console.log(`  Project: ${result.projectRoot}`);
     console.log('');

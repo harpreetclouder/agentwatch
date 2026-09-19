@@ -8,5 +8,6 @@ coverage
 .env.*
 !.env.example
 .jev/
+.veyra/
 *.tsbuildinfo
 .pnpm-store

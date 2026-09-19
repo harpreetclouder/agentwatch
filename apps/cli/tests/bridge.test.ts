@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { bridgeStatus, installBridge, uninstallBridge } from '../src/bridge/install.js';
-import { isJevManagedCommand } from '../src/bridge/paths.js';
+import { isVeyraManagedCommand } from '../src/bridge/paths.js';
 
 const tempDirs: string[] = [];
 
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 function tempProject(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jev-bridge-'));
+  const dir = mkdtempSync(join(tmpdir(), 'veyra-bridge-'));
   tempDirs.push(dir);
   writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
   mkdirSync(join(dir, '.veyra'), { recursive: true });
@@ -43,7 +43,7 @@ describe('bridge install', () => {
       hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>>;
     };
     const pre = claude.hooks['PreToolUse'] ?? [];
-    expect(pre.some((g) => g.hooks.some((h) => isJevManagedCommand(h.command)))).toBe(true);
+    expect(pre.some((g) => g.hooks.some((h) => isVeyraManagedCommand(h.command)))).toBe(true);
 
     const status = bridgeStatus(cwd);
     expect(status.claudeInstalled).toBe(true);
@@ -79,7 +79,7 @@ describe('bridge install', () => {
     };
     const commands = mid.hooks.PreToolUse.flatMap((g) => g.hooks.map((h) => h.command));
     expect(commands.some((c) => c.includes('custom-user-hook'))).toBe(true);
-    expect(commands.some((c) => isJevManagedCommand(c))).toBe(true);
+    expect(commands.some((c) => isVeyraManagedCommand(c))).toBe(true);
 
     uninstallBridge(cwd);
     const after = JSON.parse(
@@ -91,7 +91,7 @@ describe('bridge install', () => {
       g.hooks.map((h) => h.command),
     );
     expect(remaining.some((c) => c.includes('custom-user-hook'))).toBe(true);
-    expect(remaining.some((c) => isJevManagedCommand(c))).toBe(false);
+    expect(remaining.some((c) => isVeyraManagedCommand(c))).toBe(false);
   });
 
   it('writes a Claude settings patch when .claude is not writable', () => {

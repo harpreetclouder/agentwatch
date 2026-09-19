@@ -73,7 +73,7 @@ export function initSecurityPlane(cwd: string = process.cwd()): InitSecurityPlan
       readmePath,
       `# VEYRA Security Plane
 
-This directory is part of the Jev security control plane.
+This directory is part of the VEYRA security control plane.
 
 Agents must NOT modify:
 - config.json

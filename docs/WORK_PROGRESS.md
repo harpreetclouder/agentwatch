@@ -2,23 +2,29 @@
 
 ## Current stage
 
-**Stage 15 — Full rebrand to VEYRA** (complete)
+**Stage 16 — Baseline audit & brand consistency** (complete)
 
-## Done
+Do **not** start next-stage runtime enforcement work from this doc alone — wait for explicit go-ahead.
 
-- Product: **VEYRA** · CLI `veyra` · npm package `veyra` · packages `@veyra/*` · plane `.veyra/`
-- Env: `VEYRA_SEMANTIC_*` (TypeSafe model `~typesafe/jev-latest` unchanged)
-- Bundle: `apps/cli/dist/bundle/veyra.js` for publish/`npx veyra`
-- Operator runbook: `docs/OPERATOR.md`
+## Done this stage
+
+- Audited monorepo layout (`apps/cli`, `apps/dashboard`, `@veyra/*` packages). **No `packages/security`** (capabilities live in policy-engine / storage / watchdog).
+- Classified remaining `jev` / `JEV` / `.jev` hits; renamed product brand to **VEYRA** / `@veyra/*` / `veyra` / `.veyra`.
+- Left **TypeSafe Jev** (`~typesafe/jev-latest`, `TypesafeJev*`) as external model name.
+- Left workspace path `/Users/macbook/jev` and historical `*.jev-backup*` alone.
+- Legacy `.jev` still detected by security-plane classifier + gitignored.
+- Baseline: `pnpm install` · `typecheck` · `lint` · `test` · `build` — all green.
 
 ## Verify
 
 ```bash
-pnpm install && pnpm build && pnpm test
-pnpm veyra demo
-pnpm veyra bridge install
+CI=true pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
+pnpm veyra help
+pnpm veyra attack --mode=simulation
+pnpm veyra attack --mode=runtime
 ```
 
-## Next
+## Next (blocked until requested)
 
-Publish dry-run (`pnpm pack:veyra`) when ready; optional dashboard polish.
+Real runtime enforcement hardening per `docs/REAL_ENFORCEMENT_PLAN.md` (plan partially stale — fail-closed / demo / redact / runtime attack already present).
+Passport/Visa, cloud, new policies, dashboard features — out of scope until asked.

@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="shell">
           <aside className="rail">
             <div className="brand">
-              <span className="brand-mark">JEV</span>
+              <span className="brand-mark">VEYRA</span>
               <span className="brand-sub">Watchdog</span>
             </div>
             <nav className="nav">
