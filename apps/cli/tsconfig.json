@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/agent-events" },
+    { "path": "../../packages/storage" },
+    { "path": "../../packages/policy-engine" },
+    { "path": "../../packages/attack-engine" },
+    { "path": "../../packages/watchdog" },
+    { "path": "../../packages/adapters/core" },
+    { "path": "../../packages/adapters/claude-code" },
+    { "path": "../../packages/adapters/codex" }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog (post)"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog (prompt)"
+          }
+        ]
+      }
+    ]
+  }
+}

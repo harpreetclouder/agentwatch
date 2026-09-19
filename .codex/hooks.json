@@ -1,0 +1,41 @@
+{
+  "description": "JEV Watchdog live bridge (merge-safe)",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog (post)"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "JEV Watchdog (prompt)"
+          }
+        ]
+      }
+    ]
+  }
+}

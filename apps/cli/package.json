@@ -1,0 +1,33 @@
+{
+  "name": "@jev/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "jev": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@jev/adapter-claude-code": "workspace:*",
+    "@jev/adapter-codex": "workspace:*",
+    "@jev/adapter-core": "workspace:*",
+    "@jev/agent-events": "workspace:*",
+    "@jev/attack-engine": "workspace:*",
+    "@jev/policy-engine": "workspace:*",
+    "@jev/shared": "workspace:*",
+    "@jev/storage": "workspace:*",
+    "@jev/watchdog": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  }
+}
