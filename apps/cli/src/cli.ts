@@ -1,4 +1,4 @@
-import { printHelp } from './ui.js';
+import { printHelp, printCommandHelp, wantsHelp } from './ui.js';
 import { cmdVersion } from './commands/version.js';
 import { cmdStatus } from './commands/status.js';
 import { cmdInit } from './commands/init.js';
@@ -22,6 +22,16 @@ export async function runCli(argv: string[]): Promise<number> {
 
   if (command === 'version' || command === '--version' || command === '-V') {
     return cmdVersion();
+  }
+
+  // `veyra <cmd> --help` / `-h` / `help` — never execute the command
+  if (wantsHelp(rest)) {
+    if (!printCommandHelp(command)) {
+      console.error(`Unknown command: ${command}`);
+      printHelp();
+      return 1;
+    }
+    return 0;
   }
 
   switch (command) {

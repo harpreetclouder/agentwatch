@@ -75,7 +75,7 @@ export async function cmdBridge(args: string[]): Promise<number> {
     return 0;
   }
 
-  if (action === 'status' || action === 'help') {
+  if (action === 'status') {
     const status = bridgeStatus();
     console.log('Live bridge status');
     console.log('');
@@ -97,5 +97,6 @@ export async function cmdBridge(args: string[]): Promise<number> {
 
   console.error(`Unknown bridge subcommand: ${action}`);
   console.log('Use: veyra bridge install | uninstall | status');
+  console.log('Help: veyra bridge --help');
   return 1;
 }

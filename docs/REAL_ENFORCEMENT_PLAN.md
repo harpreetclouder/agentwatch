@@ -1,38 +1,28 @@
-# Stage 14 — Real local enforcement (internal plan)
+# Real local enforcement — status
 
-## Reuse
+User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.
+Not an OS sandbox. A jailbreak must never become authority.
 
-- Claude/Codex adapters + `normalizeClaudeCodeEvent`
-- `veyra hook` / `veyra bridge` / Watchdog / PolicyEngine / SQLite plane
-- SECRET_ACCESS + classifySecretPath; quarantine freeze gate
-- Existing hook integration tests (`apps/cli/tests/hook.test.ts`)
+## Already in place
 
-## Gaps (block real enforcement)
+- Claude/Codex adapters + bridge install/uninstall
+- Fail-closed malformed PreToolUse JSON
+- Quarantine freeze gate + operator `quarantine` / `resume`
+- Path helpers use `path.relative` / canonicalize (not naive substring containment)
+- Redaction helpers (`packages/policy-engine/src/redact.ts`)
+- `veyra attack --mode=runtime`, `veyra demo`, `examples/real-agent-demo`
+- Hook protocol tests (deny, fail-closed, quarantine persists, secret not echoed)
+- `docs/threat-model.md`
+- Session-aware `veyra explain <session-id>` (falls back to last attack report)
 
-1. Hook **fail-open** on malformed PreToolUse JSON
-2. Path allow/deny uses **substring** matching (`includes`/`endsWith`)
-3. No proof harness that `.env` bytes were never read
-4. `veyra explain` only reads last attack report, not live sessions
-5. No `attack --mode=runtime` / `veyra demo` / `examples/real-agent-demo`
-6. Network/shell authority incomplete; no redaction helpers; no threat-model doc
+## Remaining gaps (next stages — do not start until requested)
 
-## Modify
+1. Harder path authority edge cases (symlink races, weird tool arg shapes)
+2. Stronger network/shell authority beyond current heuristics
+3. Broader live-agent proof beyond controlled demo/runtime attack
+4. Passport / Visa issuance (types exist; runtime not implemented)
+5. Cloud / multi-tenant control plane
 
-- `packages/policy-engine/src/paths.ts` (+ tests)
-- `packages/policy-engine/src/policies/{secret,credential,task-scope,network,dangerous-shell}*`
-- `packages/agent-events/src/context.ts` (ResourceScope)
-- `apps/cli/src/commands/{hook,explain,attack,bridge}.ts` + new `demo.ts`
-- `apps/cli/src/bridge/install.ts` (backup before write)
-- `packages/shared` or policy-engine: redaction
-- README, `docs/threat-model.md`, `docs/WORK_PROGRESS.md`
+## Out of scope until asked
 
-## New (required)
-
-- `examples/real-agent-demo/**`
-- `packages/attack-engine` or CLI: `createTestWorkspace` harness
-- Hook protocol tests: fail-closed, quarantine persists, `.env` unread
-- `scripts/demo-real-agent` via `veyra demo`
-
-## Out of scope (this milestone)
-
-Cloud, auth dashboard redesign, Passport/Visa/Trust Network, full sandbox/OS boundary
+Cloud infra, dashboard feature work, new policy packs, Trust Network
