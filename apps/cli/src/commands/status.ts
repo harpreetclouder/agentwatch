@@ -16,7 +16,7 @@ export async function cmdStatus(_args: string[]): Promise<number> {
     console.log('');
     console.log('Status:  UNINITIALIZED');
     console.log('');
-    console.log('Hint: run `jev init` to create the local security plane.');
+    console.log('Hint: run `veyra init` to create the local security plane.');
     console.log('');
     return 0;
   }
@@ -36,7 +36,7 @@ export async function cmdStatus(_args: string[]): Promise<number> {
       console.log('Blocks:    0');
       console.log('Critical:  0');
       console.log('');
-      console.log('Hint: run `jev attack` or `jev watch`.');
+      console.log('Hint: run `veyra attack` or `veyra watch`.');
       console.log('');
       return 0;
     }

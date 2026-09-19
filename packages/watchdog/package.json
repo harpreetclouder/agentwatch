@@ -1,5 +1,5 @@
 {
-  "name": "@jev/watchdog",
+  "name": "@veyra/watchdog",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -22,10 +22,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jev/agent-events": "workspace:*",
-    "@jev/policy-engine": "workspace:*",
-    "@jev/shared": "workspace:*",
-    "@jev/storage": "workspace:*",
+    "@veyra/agent-events": "workspace:*",
+    "@veyra/policy-engine": "workspace:*",
+    "@veyra/shared": "workspace:*",
+    "@veyra/storage": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

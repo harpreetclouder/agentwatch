@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { migrate } from '../migrate.js';
-import type { JevStore } from '../repositories.js';
+import type { VeyraStore } from '../repositories.js';
 import { SqliteAgentRepository } from './agent-repository.js';
 import { SqliteSessionRepository } from './session-repository.js';
 import { SqliteEventRepository } from './event-repository.js';
@@ -16,7 +16,7 @@ export type OpenSqliteStoreOptions = {
   dbPath: string;
 };
 
-export class SqliteJevStore implements JevStore {
+export class SqliteVeyraStore implements VeyraStore {
   readonly agents: SqliteAgentRepository;
   readonly sessions: SqliteSessionRepository;
   readonly events: SqliteEventRepository;
@@ -35,20 +35,20 @@ export class SqliteJevStore implements JevStore {
     this.stats = new SqliteStatsRepository(this.events, this.decisions);
   }
 
-  static open(options: OpenSqliteStoreOptions): SqliteJevStore {
+  static open(options: OpenSqliteStoreOptions): SqliteVeyraStore {
     mkdirSync(dirname(options.dbPath), { recursive: true });
     const db = new DatabaseSync(options.dbPath);
     db.exec('PRAGMA foreign_keys = ON;');
     migrate(db);
-    return new SqliteJevStore(db);
+    return new SqliteVeyraStore(db);
   }
 
   /** In-memory store for tests. */
-  static openMemory(): SqliteJevStore {
+  static openMemory(): SqliteVeyraStore {
     const db = new DatabaseSync(':memory:');
     db.exec('PRAGMA foreign_keys = ON;');
     migrate(db);
-    return new SqliteJevStore(db);
+    return new SqliteVeyraStore(db);
   }
 
   close(): void {

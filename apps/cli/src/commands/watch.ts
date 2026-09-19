@@ -1,10 +1,10 @@
 import { createInterface } from 'node:readline';
-import { createId } from '@jev/shared';
-import { createClaudeCodeAdapter } from '@jev/adapter-claude-code';
-import { createCodexAdapter } from '@jev/adapter-codex';
-import type { AgentAdapter } from '@jev/adapter-core';
-import type { AgentContext } from '@jev/agent-events';
-import { Watchdog, describeSemanticProvider } from '@jev/watchdog';
+import { createId } from '@veyra/shared';
+import { createClaudeCodeAdapter } from '@veyra/adapter-claude-code';
+import { createCodexAdapter } from '@veyra/adapter-codex';
+import type { AgentAdapter } from '@veyra/adapter-core';
+import type { AgentContext } from '@veyra/agent-events';
+import { Watchdog, describeSemanticProvider } from '@veyra/watchdog';
 import { printBanner } from '../ui.js';
 import { ensureLocalStore } from '../store.js';
 
@@ -121,7 +121,7 @@ export async function cmdWatch(args: string[]): Promise<number> {
       });
 
       await store.securityState.set(sessionId, 'NORMAL', 'watch started');
-      console.log('JEV WATCHDOG armed.');
+      console.log('VEYRA WATCHDOG armed.');
       console.log('');
       console.log(`  Session: ${sessionId.slice(0, 12)}`);
     }
@@ -139,14 +139,14 @@ export async function cmdWatch(args: string[]): Promise<number> {
       console.log('');
       console.log('Feed JSONL events:');
       console.log(
-        '  pnpm --filter @jev/cli start watch -- --stdin --adapter=claude-code < examples/claude-code-hooks.jsonl',
+        '  pnpm --filter veyra start watch -- --stdin --adapter=claude-code < examples/claude-code-hooks.jsonl',
       );
     console.log(
-      '  pnpm --filter @jev/cli start watch -- --stdin --adapter=codex < examples/codex-events.jsonl',
+      '  pnpm --filter veyra start watch -- --stdin --adapter=codex < examples/codex-events.jsonl',
     );
     console.log('');
-    console.log('Or install live hooks: jev bridge install');
-    console.log('Or exercise trajectories: jev attack');
+    console.log('Or install live hooks: veyra bridge install');
+    console.log('Or exercise trajectories: veyra attack');
       console.log('');
       return 0;
     }

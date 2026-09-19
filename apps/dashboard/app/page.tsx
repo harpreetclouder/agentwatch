@@ -22,8 +22,8 @@ export default async function OverviewPage() {
           subtitle="Local security plane is not initialized."
         />
         <EmptyState>
-          Run <Mono>jev init</Mono> in the project root, then ingest events with{' '}
-          <Mono>jev watch</Mono> or <Mono>jev attack</Mono>.
+          Run <Mono>veyra init</Mono> in the project root, then ingest events with{' '}
+          <Mono>veyra watch</Mono> or <Mono>veyra attack</Mono>.
         </EmptyState>
       </>
     );
@@ -45,7 +45,7 @@ export default async function OverviewPage() {
       <>
         <PageHeader
           title="Overview"
-          subtitle={`Read-only view of agents, sessions, and enforcement from ${root}/.jev`}
+          subtitle={`Read-only view of agents, sessions, and enforcement from ${root}/.veyra`}
         />
 
         <div className="stat-grid">
@@ -96,7 +96,7 @@ export default async function OverviewPage() {
           <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.05rem' }}>Latest security events</h2>
           {violations.length === 0 ? (
             <EmptyState>
-              No violations recorded. Try <Mono>jev attack</Mono>.
+              No violations recorded. Try <Mono>veyra attack</Mono>.
             </EmptyState>
           ) : (
             <DataTable

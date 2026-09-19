@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createAgentEvent, type AgentContext } from '@jev/agent-events';
-import { createId } from '@jev/shared';
+import { createAgentEvent, type AgentContext } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
 import {
   PolicyEngine,
   dangerousShellPolicy,
@@ -143,7 +143,7 @@ describe('TASK_SCOPE + SENSITIVE', () => {
     });
     const d = sensitiveFileAccessPolicy.evaluate(
       event,
-      ctx({ deniedPaths: ['secrets'] }),
+      ctx({ deniedPaths: ['secrets/**'] }),
     );
     expect(d?.decision).toBe('BLOCK');
   });

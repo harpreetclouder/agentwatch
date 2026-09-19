@@ -1,7 +1,7 @@
-import { createId } from '@jev/shared';
-import type { AgentContext } from '@jev/agent-events';
-import type { JevStore } from '@jev/storage';
-import { Watchdog } from '@jev/watchdog';
+import { createId } from '@veyra/shared';
+import type { AgentContext } from '@veyra/agent-events';
+import type { VeyraStore } from '@veyra/storage';
+import { Watchdog } from '@veyra/watchdog';
 import { createAttackLab } from './lab.js';
 import { listAttacks } from './attacks/index.js';
 import type { AttackContext, AttackRunSummary, AttackResult } from './types.js';
@@ -23,7 +23,7 @@ function resetAgentContext(ctx: AgentContext): void {
 }
 
 export type RunAttacksOptions = {
-  store: JevStore;
+  store: VeyraStore;
   agentName?: string;
   attackIds?: string[];
 };

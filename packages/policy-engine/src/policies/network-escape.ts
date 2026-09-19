@@ -1,8 +1,10 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
+import { sanitizeEvidence } from '../redact.js';
 
 /**
  * Detect network destinations outside configured authority.
+ * True network enforcement requires an external gateway; this is MVP authorization.
  */
 export const networkEscapePolicy: Policy = {
   id: 'NETWORK_ESCAPE',
@@ -19,29 +21,27 @@ export const networkEscapePolicy: Policy = {
       return null;
     }
 
-    const lower = target.toLowerCase();
+    const host = hostnameOf(target);
+    const destination = formatDestination(target);
 
-    // Always block known exfil / evil fixtures
-    if (
-      lower.includes('evil.') ||
-      lower.includes('exfil') ||
-      lower.includes('collector.') ||
-      lower.includes('/collect')
-    ) {
+    if (isDeniedHost(host, context.deniedNetworks ?? []) || isExfilHeuristic(host, target)) {
       return {
         decision: 'QUARANTINE',
         severity: 'CRITICAL',
         ruleId: 'NETWORK_ESCAPE',
-        reason: 'Suspected data-exfiltration network destination.',
-        evidence: [`destination=${target}`, 'exfil_heuristic=true'],
+        reason: 'Network destination is explicitly denied or matches exfiltration heuristics.',
+        evidence: sanitizeEvidence([
+          `destination=${destination}`,
+          `hostname=${host}`,
+          'matchedRule=deniedNetworks_or_exfil',
+        ]),
         eventId: event.id,
       };
     }
 
     const allowed = context.allowedNetworks ?? [];
     if (allowed.length === 0) {
-      // No authority list configured: allow local/private, warn on public hosts in non-local envs
-      if (isLocalOrPrivate(lower)) {
+      if (isLocalOrPrivate(host)) {
         return null;
       }
       if (context.environment === 'local' || context.environment === 'development') {
@@ -52,17 +52,15 @@ export const networkEscapePolicy: Policy = {
         severity: 'MEDIUM',
         ruleId: 'NETWORK_ESCAPE',
         reason: 'External network destination with no allowedNetworks configured.',
-        evidence: [`destination=${target}`, `environment=${context.environment}`],
+        evidence: sanitizeEvidence([
+          `destination=${destination}`,
+          `environment=${context.environment}`,
+        ]),
         eventId: event.id,
       };
     }
 
-    const permitted = allowed.some((entry) => {
-      const e = entry.toLowerCase();
-      return lower === e || lower.includes(e) || hostnameOf(lower).endsWith(e.replace(/^\*\./, ''));
-    });
-
-    if (permitted) {
+    if (isAllowedHost(host, allowed)) {
       return null;
     }
 
@@ -71,10 +69,11 @@ export const networkEscapePolicy: Policy = {
       severity: 'HIGH',
       ruleId: 'NETWORK_ESCAPE',
       reason: 'Network destination is outside the allowed network authority.',
-      evidence: [
-        `destination=${target}`,
+      evidence: sanitizeEvidence([
+        `destination=${destination}`,
+        `hostname=${host}`,
         `allowedNetworks=${allowed.join(',')}`,
-      ],
+      ]),
       eventId: event.id,
     };
   },
@@ -88,11 +87,50 @@ function hostnameOf(urlOrHost: string): string {
   } catch {
     // fall through
   }
-  return urlOrHost.split('/')[0]?.split(':')[0]?.toLowerCase() ?? urlOrHost;
+  return urlOrHost.split('/')[0]?.split(':')[0]?.toLowerCase() ?? urlOrHost.toLowerCase();
 }
 
-function isLocalOrPrivate(value: string): boolean {
-  const host = hostnameOf(value);
+function formatDestination(target: string): string {
+  try {
+    if (target.includes('://')) {
+      const u = new URL(target);
+      return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+    }
+  } catch {
+    // fall through
+  }
+  return target;
+}
+
+function hostMatches(host: string, entry: string): boolean {
+  const e = entry.toLowerCase().trim();
+  if (!e) return false;
+  if (e.startsWith('*.')) {
+    const suffix = e.slice(1); // .example.com
+    return host === e.slice(2) || host.endsWith(suffix);
+  }
+  return host === e || host.endsWith(`.${e}`);
+}
+
+function isAllowedHost(host: string, allowed: readonly string[]): boolean {
+  return allowed.some((entry) => hostMatches(host, entry));
+}
+
+function isDeniedHost(host: string, denied: readonly string[]): boolean {
+  return denied.some((entry) => hostMatches(host, entry));
+}
+
+function isExfilHeuristic(host: string, raw: string): boolean {
+  const lower = `${host} ${raw}`.toLowerCase();
+  return (
+    host.startsWith('evil.') ||
+    host.includes('exfil') ||
+    host.startsWith('collector.') ||
+    lower.includes('/collect')
+  );
+}
+
+function isLocalOrPrivate(host: string): boolean {
   return (
     host === 'localhost' ||
     host === '127.0.0.1' ||

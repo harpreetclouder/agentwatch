@@ -17,22 +17,22 @@ export type {
   ViolationRepository,
   SecurityStateRepository,
   StatsRepository,
-  JevStore,
+  VeyraStore,
 } from './repositories.js';
 
 export { MIGRATIONS } from './migrations.js';
 export type { Migration } from './migrations.js';
 export { migrate } from './migrate.js';
 
-export { SqliteJevStore } from './sqlite/store.js';
+export { SqliteVeyraStore } from './sqlite/store.js';
 export type { OpenSqliteStoreOptions } from './sqlite/store.js';
 
 export {
   initSecurityPlane,
-  resolveJevDbPath,
+  resolveVeyraDbPath,
   resolveProjectRoot,
-  JEV_DIR_NAME,
-  JEV_DB_FILE,
-  JEV_CONFIG_FILE,
+  VEYRA_DIR_NAME,
+  VEYRA_DB_FILE,
+  VEYRA_CONFIG_FILE,
 } from './security-plane.js';
-export type { JevLocalConfig, InitSecurityPlaneResult } from './security-plane.js';
+export type { VeyraLocalConfig, InitSecurityPlaneResult } from './security-plane.js';

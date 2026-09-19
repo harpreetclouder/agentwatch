@@ -1,6 +1,12 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
-import { extractPathCandidates, resolvePath, isPathInside } from '../paths.js';
+import {
+  canonicalizePath,
+  extractPathCandidates,
+  isPathAllowed,
+  isPathDenied,
+} from '../paths.js';
+import { sanitizeEvidence } from '../redact.js';
 
 /**
  * Detect file/path actions outside declared allowedPaths when a scope is set.
@@ -12,9 +18,7 @@ export const taskScopeViolationPolicy: Policy = {
 
   evaluate(event: AgentEvent, context: AgentContext): SecurityDecision | null {
     const allowed = context.allowedPaths ?? [];
-    if (allowed.length === 0) {
-      return null;
-    }
+    const denied = context.deniedPaths ?? [];
 
     if (!['file_read', 'file_write', 'shell', 'tool_call'].includes(event.type)) {
       return null;
@@ -27,27 +31,40 @@ export const taskScopeViolationPolicy: Policy = {
     }
 
     for (const candidate of candidates) {
-      const resolved = resolvePath(candidate, cwd);
-      const inScope = allowed.some((entry) => {
-        const allowedResolved = resolvePath(entry, cwd);
-        return (
-          isPathInside(resolved, allowedResolved) ||
-          resolved.toLowerCase().includes(entry.toLowerCase())
-        );
-      });
+      const resolved = canonicalizePath(candidate, cwd);
 
-      if (!inScope) {
+      if (denied.length > 0 && isPathDenied(candidate, denied, cwd)) {
+        return {
+          decision: 'BLOCK',
+          severity: 'HIGH',
+          ruleId: 'TASK_SCOPE_VIOLATION',
+          reason: 'Action targets a path on the denied resource list.',
+          evidence: sanitizeEvidence([
+            `resource=${candidate}`,
+            `resolved=${resolved}`,
+            `deniedPaths=${denied.join(',')}`,
+            `task=${context.task?.id ?? 'none'}`,
+          ]),
+          eventId: event.id,
+        };
+      }
+
+      if (allowed.length === 0) {
+        continue;
+      }
+
+      if (!isPathAllowed(candidate, allowed, cwd)) {
         return {
           decision: 'WARN',
           severity: 'MEDIUM',
           ruleId: 'TASK_SCOPE_VIOLATION',
           reason: 'Action targets a path outside the declared task resource scope.',
-          evidence: [
+          evidence: sanitizeEvidence([
             `resource=${candidate}`,
             `resolved=${resolved}`,
             `allowedPaths=${allowed.join(',')}`,
             `task=${context.task?.id ?? 'none'}`,
-          ],
+          ]),
           eventId: event.id,
         };
       }

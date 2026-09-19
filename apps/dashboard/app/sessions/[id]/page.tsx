@@ -22,7 +22,7 @@ export default async function SessionTimelinePage({ params }: Props) {
       <>
         <PageHeader title="Session" />
         <EmptyState>
-          Security plane not initialized. Run <Mono>jev init</Mono>.
+          Security plane not initialized. Run <Mono>veyra init</Mono>.
         </EmptyState>
       </>
     );

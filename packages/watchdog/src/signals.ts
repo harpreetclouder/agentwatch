@@ -1,4 +1,4 @@
-import type { SecurityDecision } from '@jev/policy-engine';
+import type { SecurityDecision } from '@veyra/policy-engine';
 import type { BehaviorSignal } from './types.js';
 
 /**

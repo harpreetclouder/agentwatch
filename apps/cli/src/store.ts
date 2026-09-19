@@ -1,24 +1,24 @@
 import {
   initSecurityPlane,
-  resolveJevDbPath,
-  SqliteJevStore,
-  type JevStore,
-} from '@jev/storage';
+  resolveVeyraDbPath,
+  SqliteVeyraStore,
+  type VeyraStore,
+} from '@veyra/storage';
 
-export function openLocalStore(cwd: string = process.cwd()): JevStore | null {
-  const dbPath = resolveJevDbPath(cwd);
+export function openLocalStore(cwd: string = process.cwd()): VeyraStore | null {
+  const dbPath = resolveVeyraDbPath(cwd);
   if (!dbPath) {
     return null;
   }
-  return SqliteJevStore.open({ dbPath });
+  return SqliteVeyraStore.open({ dbPath });
 }
 
 export function ensureLocalStore(cwd: string = process.cwd()): {
-  store: JevStore;
+  store: VeyraStore;
   created: boolean;
   rootDir: string;
 } {
   const plane = initSecurityPlane(cwd);
-  const store = SqliteJevStore.open({ dbPath: plane.dbPath });
+  const store = SqliteVeyraStore.open({ dbPath: plane.dbPath });
   return { store, created: plane.created, rootDir: plane.rootDir };
 }

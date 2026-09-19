@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createId } from '@jev/shared';
-import { SqliteJevStore } from '@jev/storage';
+import { createId } from '@veyra/shared';
+import { SqliteVeyraStore } from '@veyra/storage';
 import {
   isEnforcementFrozen,
   quarantineSession,
@@ -9,7 +9,7 @@ import {
 
 describe('session control', () => {
   it('quarantines and resumes a session (operator only)', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');
@@ -55,7 +55,7 @@ describe('session control', () => {
   });
 
   it('rejects resume on NORMAL sessions', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');

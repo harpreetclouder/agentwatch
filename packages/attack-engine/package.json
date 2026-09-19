@@ -1,5 +1,5 @@
 {
-  "name": "@jev/attack-engine",
+  "name": "@veyra/attack-engine",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,11 +20,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jev/agent-events": "workspace:*",
-    "@jev/policy-engine": "workspace:*",
-    "@jev/shared": "workspace:*",
-    "@jev/storage": "workspace:*",
-    "@jev/watchdog": "workspace:*"
+    "@veyra/agent-events": "workspace:*",
+    "@veyra/policy-engine": "workspace:*",
+    "@veyra/shared": "workspace:*",
+    "@veyra/storage": "workspace:*",
+    "@veyra/watchdog": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

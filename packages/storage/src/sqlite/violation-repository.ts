@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Severity } from '@jev/shared';
+import type { Severity } from '@veyra/shared';
 import type { ViolationRecord } from '../types.js';
 import type { ViolationRepository } from '../repositories.js';
 

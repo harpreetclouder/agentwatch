@@ -23,6 +23,8 @@ export interface ResourceScope {
   type: string;
   pattern: string;
   operations: string[];
+  /** Optional allow/deny effect for MVP resource authorization. */
+  effect?: 'allow' | 'deny';
 }
 
 export interface AgentVisa {

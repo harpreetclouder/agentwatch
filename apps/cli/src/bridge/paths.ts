@@ -1,8 +1,8 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveProjectRoot, JEV_DIR_NAME } from '@jev/storage';
+import { resolveProjectRoot, VEYRA_DIR_NAME } from '@veyra/storage';
 
-export const BRIDGE_MARKER = 'jev-watchdog-bridge';
+export const BRIDGE_MARKER = 'veyra-watchdog-bridge';
 export const CLAUDE_BRIDGE_SCRIPT = 'claude-bridge.sh';
 export const CODEX_BRIDGE_SCRIPT = 'codex-bridge.sh';
 
@@ -14,7 +14,7 @@ export function resolveCliEntry(): string {
 
 export function resolveBridgeRoot(cwd: string = process.cwd()): {
   projectRoot: string;
-  jevDir: string;
+  veyraDir: string;
   hooksDir: string;
   claudeSettingsPath: string;
   codexHooksPath: string;
@@ -24,11 +24,11 @@ export function resolveBridgeRoot(cwd: string = process.cwd()): {
   cliEntry: string;
 } {
   const projectRoot = resolveProjectRoot(cwd);
-  const jevDir = join(projectRoot, JEV_DIR_NAME);
-  const hooksDir = join(jevDir, 'hooks');
+  const veyraDir = join(projectRoot, VEYRA_DIR_NAME);
+  const hooksDir = join(veyraDir, 'hooks');
   return {
     projectRoot,
-    jevDir,
+    veyraDir,
     hooksDir,
     claudeSettingsPath: join(projectRoot, '.claude', 'settings.json'),
     codexHooksPath: join(projectRoot, '.codex', 'hooks.json'),

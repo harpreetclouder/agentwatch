@@ -1,5 +1,5 @@
 {
-  "name": "@jev/agent-events",
+  "name": "@veyra/agent-events",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@jev/shared": "workspace:*",
+    "@veyra/shared": "workspace:*",
     "zod": "^3.25.51"
   },
   "devDependencies": {

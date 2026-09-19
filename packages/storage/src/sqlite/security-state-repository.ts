@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { SecurityState } from '@jev/shared';
+import type { SecurityState } from '@veyra/shared';
 import type { SecurityStateRecord } from '../types.js';
 import type { SecurityStateRepository } from '../repositories.js';
 

@@ -28,7 +28,7 @@ export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export { DEFAULT_DECISIONS_URL };
 
 function resolveApiKey(env: NodeJS.ProcessEnv, backendHint?: 'openrouter' | 'openai' | 'custom'): string {
-  const jev = env['JEV_SEMANTIC_API_KEY']?.trim() || '';
+  const jev = env['VEYRA_SEMANTIC_API_KEY']?.trim() || '';
   const openrouter = env['OPENROUTER_API_KEY']?.trim() || '';
   const openai = env['OPENAI_API_KEY']?.trim() || '';
 
@@ -50,7 +50,7 @@ function prefersOpenRouter(env: NodeJS.ProcessEnv, explicit: string): boolean {
   if (env['OPENROUTER_API_KEY']?.trim()) {
     return true;
   }
-  const base = env['JEV_SEMANTIC_BASE_URL'] ?? '';
+  const base = env['VEYRA_SEMANTIC_BASE_URL'] ?? '';
   return base.includes('openrouter.ai');
 }
 
@@ -62,31 +62,31 @@ function prefersOpenRouter(env: NodeJS.ProcessEnv, explicit: string): boolean {
  * POST https://openrouter.ai/api/alpha/decisions
  *
  * Env:
- * - OPENROUTER_API_KEY (preferred) | JEV_SEMANTIC_API_KEY | OPENAI_API_KEY
- * - JEV_SEMANTIC_MODEL (default ~typesafe/jev-latest)
- * - JEV_SEMANTIC_BASE_URL (chat models only; Jev uses Decisions URL)
- * - JEV_SEMANTIC_DECISIONS_URL (default https://openrouter.ai/api/alpha/decisions)
- * - JEV_SEMANTIC_PROVIDER=mock|openrouter|openai-compatible|off
+ * - OPENROUTER_API_KEY (preferred) | VEYRA_SEMANTIC_API_KEY | OPENAI_API_KEY
+ * - VEYRA_SEMANTIC_MODEL (default ~typesafe/jev-latest)
+ * - VEYRA_SEMANTIC_BASE_URL (chat models only; Jev uses Decisions URL)
+ * - VEYRA_SEMANTIC_DECISIONS_URL (default https://openrouter.ai/api/alpha/decisions)
+ * - VEYRA_SEMANTIC_PROVIDER=mock|openrouter|openai-compatible|off
  */
 export function resolveSemanticConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ResolvedSemanticConfig {
-  const explicit = (env['JEV_SEMANTIC_PROVIDER'] ?? '').trim().toLowerCase();
+  const explicit = (env['VEYRA_SEMANTIC_PROVIDER'] ?? '').trim().toLowerCase();
   const useOpenRouter = prefersOpenRouter(env, explicit);
 
   const baseUrl = (
-    env['JEV_SEMANTIC_BASE_URL'] ??
+    env['VEYRA_SEMANTIC_BASE_URL'] ??
     (useOpenRouter ? DEFAULT_OPENROUTER_BASE_URL : DEFAULT_OPENAI_BASE_URL)
   ).trim();
 
-  const model = (env['JEV_SEMANTIC_MODEL'] ?? DEFAULT_JEV_MODEL).trim();
+  const model = (env['VEYRA_SEMANTIC_MODEL'] ?? DEFAULT_JEV_MODEL).trim();
 
   let backend: ResolvedSemanticConfig['backend'] = 'none';
   if (baseUrl.includes('openrouter.ai') || useOpenRouter) {
     backend = 'openrouter';
   } else if (baseUrl.includes('openai.com')) {
     backend = 'openai';
-  } else if (env['JEV_SEMANTIC_BASE_URL']) {
+  } else if (env['VEYRA_SEMANTIC_BASE_URL']) {
     backend = 'custom';
   }
 
@@ -156,7 +156,7 @@ export function createSemanticAnalyzer(
     if (!apiKey || !config.baseUrl || !config.model) {
       return new MockSemanticAnalyzer();
     }
-    const timeoutRaw = env['JEV_SEMANTIC_TIMEOUT_MS'];
+    const timeoutRaw = env['VEYRA_SEMANTIC_TIMEOUT_MS'];
     const timeoutMs = timeoutRaw ? Number(timeoutRaw) : undefined;
     const timeoutOpt =
       timeoutMs !== undefined && Number.isFinite(timeoutMs) ? { timeoutMs } : {};
@@ -165,7 +165,7 @@ export function createSemanticAnalyzer(
     // TypeSafe Jev is Decisions API only — never chat/completions (HTTP 400).
     if (config.decisionsApi) {
       const decisionsUrl = (
-        env['JEV_SEMANTIC_DECISIONS_URL'] ?? DEFAULT_DECISIONS_URL
+        env['VEYRA_SEMANTIC_DECISIONS_URL'] ?? DEFAULT_DECISIONS_URL
       ).trim();
       return new TypesafeJevSemanticAnalyzer({
         decisionsUrl,

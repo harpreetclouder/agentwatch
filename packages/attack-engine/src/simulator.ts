@@ -1,6 +1,6 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
-import type { SecurityDecision } from '@jev/policy-engine';
-import type { BehaviorSignal, Watchdog } from '@jev/watchdog';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
+import type { SecurityDecision } from '@veyra/policy-engine';
+import type { BehaviorSignal, Watchdog } from '@veyra/watchdog';
 
 export type SimulatedStepResult = {
   event: AgentEvent;

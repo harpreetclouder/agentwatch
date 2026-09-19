@@ -1,13 +1,21 @@
-import type { AgentEvent } from '@jev/agent-events';
+import type { AgentEvent } from '@veyra/agent-events';
+
+const DEFAULT_MAX_EVENTS = 500;
 
 /**
  * In-memory session history for trajectory correlation.
- * Persistence remains in @jev/storage; this is the hot path view.
+ * Bounded to avoid unbounded memory growth.
  */
 export class SessionHistory {
   private readonly events: AgentEvent[] = [];
+  private readonly maxEvents: number;
 
-  constructor(readonly sessionId: string) {}
+  constructor(
+    readonly sessionId: string,
+    options: { maxEvents?: number } = {},
+  ) {
+    this.maxEvents = options.maxEvents ?? DEFAULT_MAX_EVENTS;
+  }
 
   append(event: AgentEvent): void {
     if (event.sessionId !== this.sessionId) {
@@ -16,6 +24,9 @@ export class SessionHistory {
       );
     }
     this.events.push(event);
+    while (this.events.length > this.maxEvents) {
+      this.events.shift();
+    }
   }
 
   all(): readonly AgentEvent[] {

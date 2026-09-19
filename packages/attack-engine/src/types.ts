@@ -1,8 +1,8 @@
-import type { AgentEvent, AgentContext } from '@jev/agent-events';
-import type { SecurityDecision } from '@jev/policy-engine';
-import type { Severity } from '@jev/shared';
-import type { JevStore } from '@jev/storage';
-import type { BehaviorSignal, Watchdog } from '@jev/watchdog';
+import type { AgentEvent, AgentContext } from '@veyra/agent-events';
+import type { SecurityDecision } from '@veyra/policy-engine';
+import type { Severity } from '@veyra/shared';
+import type { VeyraStore } from '@veyra/storage';
+import type { BehaviorSignal, Watchdog } from '@veyra/watchdog';
 
 export type AttackCategory =
   | 'prompt-injection'
@@ -21,7 +21,7 @@ export interface AttackContext {
   agentName: string;
   sessionId: string;
   workingDirectory: string;
-  store: JevStore;
+  store: VeyraStore;
   agentContext: AgentContext;
   labRoot: string;
   watchdog: Watchdog;

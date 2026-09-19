@@ -41,5 +41,17 @@ export type { SecretMatch } from './classify/secrets.js';
 export {
   extractPathCandidates,
   resolvePath,
+  canonicalizePath,
+  isPathInside,
+  isPathAllowed,
+  isPathDenied,
+  matchesResourceScope,
   tokenizeCommand,
 } from './paths.js';
+
+export {
+  redactSensitiveValue,
+  sanitizeEvidence,
+  sanitizeEventPayload,
+} from './redact.js';
+export type { ResourceMatchScope } from './paths.js';

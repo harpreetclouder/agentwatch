@@ -22,7 +22,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'JEV Watchdog',
+  title: 'VEYRA Watchdog',
   description: 'Agent observability + authority + security enforcement',
 };
 
@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Link>
               ))}
             </nav>
-            <p className="rail-note">Local .jev plane · read-only</p>
+            <p className="rail-note">Local .veyra plane · read-only</p>
           </aside>
           <main className="main">{children}</main>
         </div>

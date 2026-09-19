@@ -33,7 +33,7 @@ export async function cmdBridge(args: string[]): Promise<number> {
   const [sub, ...rest] = args;
   const action = sub ?? 'status';
 
-  // Ensure .jev plane exists for scripts/manifest
+  // Ensure .veyra plane exists for scripts/manifest
   const { store, rootDir } = ensureLocalStore();
   store.close();
 
@@ -51,7 +51,7 @@ export async function cmdBridge(args: string[]): Promise<number> {
         console.log(`  Claude:   PATCH ONLY (could not write .claude/settings.json)`);
         console.log(`  Patch:    ${result.claudePatchPath}`);
         console.log('            Merge patch hooks into .claude/settings.json, or re-run');
-        console.log('            `jev bridge install` in a normal (non-sandboxed) terminal.');
+        console.log('            `veyra bridge install` in a normal (non-sandboxed) terminal.');
       }
     }
     if (adapters.includes('codex')) {
@@ -61,7 +61,7 @@ export async function cmdBridge(args: string[]): Promise<number> {
     console.log('Next:');
     console.log('  • Restart Claude Code / Codex so hooks reload');
     console.log('  • Codex: review + trust hooks via /hooks');
-    console.log('  • Agent tool calls now flow through JEV Watchdog');
+    console.log('  • Agent tool calls now flow through VEYRA Watchdog');
     console.log('');
     return 0;
   }
@@ -88,14 +88,14 @@ export async function cmdBridge(args: string[]): Promise<number> {
     }
     console.log('');
     console.log('Usage:');
-    console.log('  jev bridge install [--adapter=claude-code|codex|all]');
-    console.log('  jev bridge uninstall');
-    console.log('  jev bridge status');
+    console.log('  veyra bridge install [--adapter=claude-code|codex|all]');
+    console.log('  veyra bridge uninstall');
+    console.log('  veyra bridge status');
     console.log('');
     return 0;
   }
 
   console.error(`Unknown bridge subcommand: ${action}`);
-  console.log('Use: jev bridge install | uninstall | status');
+  console.log('Use: veyra bridge install | uninstall | status');
   return 1;
 }

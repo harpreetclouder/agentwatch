@@ -1,14 +1,14 @@
 {
-  "description": "JEV Watchdog live bridge (merge-safe)",
+  "description": "VEYRA Watchdog live bridge (merge-safe)",
   "hooks": {
     "PreToolUse": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/.veyra/hooks/codex-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog"
+            "statusMessage": "VEYRA Watchdog"
           }
         ]
       }
@@ -18,9 +18,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/.veyra/hooks/codex-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog (post)"
+            "statusMessage": "VEYRA Watchdog (post)"
           }
         ]
       }
@@ -30,9 +30,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/codex-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/.veyra/hooks/codex-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog (prompt)"
+            "statusMessage": "VEYRA Watchdog (prompt)"
           }
         ]
       }

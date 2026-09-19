@@ -1,5 +1,5 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
-import { classifySecretPath } from '@jev/policy-engine';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
+import { classifySecretPath } from '@veyra/policy-engine';
 import type { BehaviorSignal, TrajectoryRule } from '../types.js';
 
 function targetOf(event: AgentEvent): string {

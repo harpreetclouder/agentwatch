@@ -1,5 +1,5 @@
-import { PolicyEngine } from '@jev/policy-engine';
-import { describeSemanticProvider } from '@jev/watchdog';
+import { PolicyEngine } from '@veyra/policy-engine';
+import { describeSemanticProvider } from '@veyra/watchdog';
 import { printBanner } from '../ui.js';
 
 export function cmdPolicy(args: string[]): number {
@@ -38,7 +38,7 @@ export function cmdPolicy(args: string[]): number {
   console.log('  # defaults: model=~typesafe/jev-latest');
   console.log('  # endpoint: POST https://openrouter.ai/api/alpha/decisions');
   console.log('  # https://openrouter.ai/~typesafe/jev-latest');
-  console.log('  JEV_SEMANTIC_PROVIDER=openrouter|mock|off');
+  console.log('  VEYRA_SEMANTIC_PROVIDER=openrouter|mock|off');
   console.log('');
   return 0;
 }

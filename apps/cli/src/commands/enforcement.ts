@@ -1,4 +1,4 @@
-import { quarantineSession, resumeSession } from '@jev/policy-engine';
+import { quarantineSession, resumeSession } from '@veyra/policy-engine';
 import { printBanner } from '../ui.js';
 import { openLocalStore } from '../store.js';
 
@@ -38,7 +38,7 @@ export async function cmdQuarantine(args: string[]): Promise<number> {
   printBanner();
   const store = openLocalStore();
   if (!store) {
-    console.log('Security plane not initialized. Run `jev init` first.');
+    console.log('Security plane not initialized. Run `veyra init` first.');
     console.log('');
     return 1;
   }
@@ -53,7 +53,7 @@ export async function cmdQuarantine(args: string[]): Promise<number> {
     console.log(`  State:    ${result.securityState}`);
     console.log(`  Reason:   ${result.reason}`);
     console.log('');
-    console.log('Tool actions are denied until an operator runs `jev resume`.');
+    console.log('Tool actions are denied until an operator runs `veyra resume`.');
     console.log('');
     return 0;
   } catch (err) {
@@ -72,7 +72,7 @@ export async function cmdResume(args: string[]): Promise<number> {
   printBanner();
   const store = openLocalStore();
   if (!store) {
-    console.log('Security plane not initialized. Run `jev init` first.');
+    console.log('Security plane not initialized. Run `veyra init` first.');
     console.log('');
     return 1;
   }
@@ -87,7 +87,7 @@ export async function cmdResume(args: string[]): Promise<number> {
     console.log(`  State:    ${result.securityState}`);
     console.log(`  Reason:   ${result.reason}`);
     console.log('');
-    console.log('Authority restored to NORMAL. Continue with `jev watch` / live hooks.');
+    console.log('Authority restored to NORMAL. Continue with `veyra watch` / live hooks.');
     console.log('');
     return 0;
   } catch (err) {

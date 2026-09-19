@@ -1,8 +1,8 @@
-import { createId } from '@jev/shared';
-import type { JevStore, SecurityDecisionRecord, ViolationRecord } from '@jev/storage';
+import { createId } from '@veyra/shared';
+import type { VeyraStore, SecurityDecisionRecord, ViolationRecord } from '@veyra/storage';
 import type { SecurityDecision } from './types.js';
 import { nextSecurityState } from './enforcement.js';
-import type { AgentContext } from '@jev/agent-events';
+import type { AgentContext } from '@veyra/agent-events';
 
 export function toDecisionRecord(
   decision: SecurityDecision,
@@ -33,7 +33,7 @@ export type PersistDecisionResult = {
  * Persist a security decision and apply progressive enforcement state.
  */
 export async function persistDecision(
-  store: JevStore,
+  store: VeyraStore,
   decision: SecurityDecision,
   context: AgentContext,
 ): Promise<PersistDecisionResult> {

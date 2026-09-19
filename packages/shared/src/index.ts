@@ -1,5 +1,5 @@
 /**
- * Shared primitives for JEV Watchdog.
+ * Shared primitives for VEYRA Watchdog.
  * Keep this package free of domain security logic.
  */
 
@@ -54,7 +54,7 @@ export function maxSeverity(a: Severity, b: Severity): Severity {
   return severityRank(a) >= severityRank(b) ? a : b;
 }
 
-export function createId(prefix = 'jev'): string {
+export function createId(prefix = 'veyra'): string {
   const rand = Math.random().toString(36).slice(2, 10);
   const time = Date.now().toString(36);
   return `${prefix}_${time}_${rand}`;

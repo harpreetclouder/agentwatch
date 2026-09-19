@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createAgentEvent, type AgentContext } from '@jev/agent-events';
-import { createId } from '@jev/shared';
-import { SqliteJevStore } from '@jev/storage';
+import { createAgentEvent, type AgentContext } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
+import { SqliteVeyraStore } from '@veyra/storage';
 import {
   PolicyEngine,
   classifySecretPath,
@@ -108,13 +108,13 @@ describe('SECRET_ACCESS', () => {
 describe('SECURITY_CONTROL_TAMPERING', () => {
   const context = baseContext();
 
-  it('quarantines writes to .jev/policies', () => {
+  it('quarantines writes to .veyra/policies', () => {
     const event = createAgentEvent({
       id: createId('evt'),
       sessionId: context.sessionId,
       agentId: context.agentId,
       type: 'file_write',
-      action: { name: 'write_file', target: '.jev/policies/secret.json' },
+      action: { name: 'write_file', target: '.veyra/policies/secret.json' },
       context: { cwd: '/repo' },
     });
 
@@ -160,11 +160,11 @@ describe('PolicyEngine', () => {
       sessionId: context.sessionId,
       agentId: context.agentId,
       type: 'file_write',
-      action: { name: 'write_file', target: '.jev/config.json' },
+      action: { name: 'write_file', target: '.veyra/config.json' },
       context: { cwd: '/repo' },
     });
 
-    // .jev/config.json is security plane (CRITICAL). It is not classified as a secret file.
+    // .veyra/config.json is security plane (CRITICAL). It is not classified as a secret file.
     const result = engine.evaluate(event, context);
     expect(result.primary?.ruleId).toBe('SECURITY_CONTROL_TAMPERING');
     expect(result.primary?.decision).toBe('QUARANTINE');
@@ -204,7 +204,7 @@ describe('enforcement + persist', () => {
   });
 
   it('persists decision, violation, and security state', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');

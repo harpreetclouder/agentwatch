@@ -1,9 +1,9 @@
-import type { JevStore } from '@jev/storage';
-import type { Watchdog } from '@jev/watchdog';
+import type { VeyraStore } from '@veyra/storage';
+import type { Watchdog } from '@veyra/watchdog';
 import type { AttackRunSummary, SecurityReport } from './types.js';
 
 export async function buildSecurityReport(
-  store: JevStore,
+  store: VeyraStore,
   summary: AttackRunSummary,
   watchdog?: Watchdog,
 ): Promise<SecurityReport> {

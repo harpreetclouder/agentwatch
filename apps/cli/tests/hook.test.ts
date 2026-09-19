@@ -18,14 +18,14 @@ afterEach(() => {
 });
 
 function tempProject(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'jev-hook-'));
+  const dir = mkdtempSync(join(tmpdir(), 'veyra-hook-'));
   tempDirs.push(dir);
   writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
-  mkdirSync(join(dir, '.jev'), { recursive: true });
+  mkdirSync(join(dir, '.veyra'), { recursive: true });
   writeFileSync(
-    join(dir, '.jev', 'config.json'),
+    join(dir, '.veyra', 'config.json'),
     `${JSON.stringify(
-      { schemaVersion: '0.1.0', createdAt: new Date().toISOString(), dbPath: 'jev.sqlite' },
+      { schemaVersion: '0.1.0', createdAt: new Date().toISOString(), dbPath: 'veyra.sqlite' },
       null,
       2,
     )}\n`,
@@ -33,7 +33,7 @@ function tempProject(): string {
   return dir;
 }
 
-describe('jev hook', () => {
+describe('veyra hook', () => {
   it('denies PreToolUse secret access with structured JSON', () => {
     expect(existsSync(cliEntry)).toBe(true);
     const cwd = tempProject();

@@ -1,4 +1,4 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
 
 /**

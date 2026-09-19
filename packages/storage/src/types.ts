@@ -1,4 +1,4 @@
-import type { Environment, SecurityState, Severity } from '@jev/shared';
+import type { Environment, SecurityState, Severity } from '@veyra/shared';
 
 /** Persisted agent identity row (Passport precursor). */
 export interface AgentRecord {

@@ -1,10 +1,10 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
-import type { Severity } from '@jev/shared';
-import type { DecisionOutcome } from '@jev/storage';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
+import type { Severity } from '@veyra/shared';
+import type { DecisionOutcome } from '@veyra/storage';
 
 /**
  * Evidence-backed security decision produced by a policy.
- * Persistence adds a stable id via @jev/storage.
+ * Persistence adds a stable id via @veyra/storage.
  */
 export interface SecurityDecision {
   decision: DecisionOutcome;

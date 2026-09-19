@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createAgentEvent } from '@jev/agent-events';
-import { createId } from '@jev/shared';
+import { createAgentEvent } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
 import {
   initSecurityPlane,
-  resolveJevDbPath,
-  SqliteJevStore,
+  resolveVeyraDbPath,
+  SqliteVeyraStore,
 } from '../src/index.js';
 
 const tempDirs: string[] = [];
@@ -27,9 +27,9 @@ function tempCwd(): string {
   return dir;
 }
 
-describe('SqliteJevStore', () => {
+describe('SqliteVeyraStore', () => {
   it('migrates and persists agent, session, event, decision, violation', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
 
     const now = new Date().toISOString();
     const agentId = createId('agent');
@@ -130,7 +130,7 @@ describe('SqliteJevStore', () => {
   });
 
   it('rejects events for unknown sessions (FK)', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const event = createAgentEvent({
       id: createId('evt'),
       sessionId: 'missing',
@@ -144,7 +144,7 @@ describe('SqliteJevStore', () => {
   });
 
   it('updates security state progressively', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');
@@ -183,16 +183,16 @@ describe('SqliteJevStore', () => {
 });
 
 describe('security plane', () => {
-  it('initializes .jev layout and resolves db path', () => {
+  it('initializes .veyra layout and resolves db path', () => {
     const cwd = tempCwd();
     const first = initSecurityPlane(cwd);
     expect(first.created).toBe(true);
-    expect(resolveJevDbPath(cwd)).toBe(first.dbPath);
+    expect(resolveVeyraDbPath(cwd)).toBe(first.dbPath);
 
     const second = initSecurityPlane(cwd);
     expect(second.created).toBe(false);
 
-    const store = SqliteJevStore.open({ dbPath: first.dbPath });
+    const store = SqliteVeyraStore.open({ dbPath: first.dbPath });
     store.close();
   });
 
@@ -203,7 +203,7 @@ describe('security plane', () => {
     mkdirSync(nested, { recursive: true });
 
     const plane = initSecurityPlane(nested);
-    expect(plane.rootDir).toBe(join(root, '.jev'));
-    expect(resolveJevDbPath(nested)).toBe(plane.dbPath);
+    expect(plane.rootDir).toBe(join(root, '.veyra'));
+    expect(resolveVeyraDbPath(nested)).toBe(plane.dbPath);
   });
 });

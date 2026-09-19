@@ -14,9 +14,9 @@ export function cmdInit(_args: string[]): number {
 
   console.log('');
   console.log(`  Path: ${rootDir}`);
-  console.log('  DB:   jev.sqlite');
+  console.log('  DB:   veyra.sqlite');
   console.log('');
-  console.log('Note: .jev/ is a security-plane resource.');
+  console.log('Note: .veyra/ is a security-plane resource.');
   console.log('Agents must not modify config, policies, or event history.');
   console.log('');
   return 0;

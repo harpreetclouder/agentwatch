@@ -1,5 +1,5 @@
 {
-  "name": "@jev/dashboard",
+  "name": "@veyra/dashboard",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@jev/agent-events": "workspace:*",
-    "@jev/shared": "workspace:*",
-    "@jev/storage": "workspace:*",
+    "@veyra/agent-events": "workspace:*",
+    "@veyra/shared": "workspace:*",
+    "@veyra/storage": "workspace:*",
     "next": "16.3.5",
     "react": "19.1.1",
     "react-dom": "19.1.1"

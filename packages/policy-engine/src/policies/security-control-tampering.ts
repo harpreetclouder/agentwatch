@@ -1,4 +1,4 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
 import { extractPathCandidates } from '../paths.js';
 import {
@@ -29,7 +29,7 @@ export const securityControlTamperingPolicy: Policy = {
     }
 
     const writeLike = isWriteLikeEvent(event.type, event.action.name);
-    // Reads of .jev are suspicious; writes are critical. Both are blocked at CRITICAL
+    // Reads of .veyra are suspicious; writes are critical. Both are blocked at CRITICAL
     // for control-plane paths — agent must not inspect/alter enforcement config.
     for (const candidate of candidates) {
       const match = classifySecurityPlanePath(candidate, cwd);
@@ -71,8 +71,8 @@ function detectNameBasedTampering(event: AgentEvent): SecurityDecision | null {
     'remove quarantine',
     'revoke quarantine',
     'modify policy',
-    'delete .jev',
-    'rm .jev',
+    'delete .veyra',
+    'rm .veyra',
   ];
 
   for (const marker of markers) {

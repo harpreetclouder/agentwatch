@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createId, isSeverity, maxSeverity, severityRank } from '../src/index.js';
 
-describe('@jev/shared', () => {
+describe('@veyra/shared', () => {
   it('ranks severities', () => {
     expect(severityRank('LOW')).toBeLessThan(severityRank('CRITICAL'));
     expect(maxSeverity('LOW', 'HIGH')).toBe('HIGH');

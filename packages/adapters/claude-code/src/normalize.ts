@@ -1,7 +1,7 @@
-import type { AgentEvent, AgentEventType } from '@jev/agent-events';
-import { createAgentEvent } from '@jev/agent-events';
-import { createId } from '@jev/shared';
-import type { AdapterOptions } from '@jev/adapter-core';
+import type { AgentEvent, AgentEventType } from '@veyra/agent-events';
+import { createAgentEvent } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
+import type { AdapterOptions } from '@veyra/adapter-core';
 import {
   ClaudeHookEventSchema,
   ClaudeMessageSchema,

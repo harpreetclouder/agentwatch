@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { AgentEvent } from '@jev/agent-events';
-import { parseAgentEventOrThrow } from '@jev/agent-events';
+import type { AgentEvent } from '@veyra/agent-events';
+import { parseAgentEventOrThrow } from '@veyra/agent-events';
 import type { EventRepository } from '../repositories.js';
 
 type EventRow = {

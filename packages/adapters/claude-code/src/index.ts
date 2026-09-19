@@ -1,4 +1,4 @@
-export type { AdapterOptions, AgentAdapter, AgentSession } from '@jev/adapter-core';
+export type { AdapterOptions, AgentAdapter, AgentSession } from '@veyra/adapter-core';
 
 export {
   ClaudeCodeAdapter,

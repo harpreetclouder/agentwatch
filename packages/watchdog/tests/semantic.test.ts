@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAgentEvent, type AgentContext } from '@jev/agent-events';
+import { createAgentEvent, type AgentContext } from '@veyra/agent-events';
 import {
   createSemanticAnalyzer,
   describeSemanticProvider,
@@ -36,11 +36,11 @@ describe('resolveSemanticConfig', () => {
     expect(config.baseUrl).toContain('openrouter.ai');
   });
 
-  it('selects openai-compatible when JEV_SEMANTIC_API_KEY is set', () => {
+  it('selects openai-compatible when VEYRA_SEMANTIC_API_KEY is set', () => {
     const config = resolveSemanticConfig({
-      JEV_SEMANTIC_API_KEY: 'sk-test',
-      JEV_SEMANTIC_BASE_URL: 'https://api.openai.com/v1',
-      JEV_SEMANTIC_MODEL: 'gpt-4o-mini',
+      VEYRA_SEMANTIC_API_KEY: 'sk-test',
+      VEYRA_SEMANTIC_BASE_URL: 'https://api.openai.com/v1',
+      VEYRA_SEMANTIC_MODEL: 'gpt-4o-mini',
     });
     expect(config.kind).toBe('openai-compatible');
     expect(config.apiKeyConfigured).toBe(true);
@@ -68,11 +68,11 @@ describe('resolveSemanticConfig', () => {
   it('can force off', () => {
     expect(
       resolveSemanticConfig({
-        JEV_SEMANTIC_PROVIDER: 'off',
-        JEV_SEMANTIC_API_KEY: 'sk-test',
+        VEYRA_SEMANTIC_PROVIDER: 'off',
+        VEYRA_SEMANTIC_API_KEY: 'sk-test',
       }).kind,
     ).toBe('off');
-    expect(createSemanticAnalyzer({ env: { JEV_SEMANTIC_PROVIDER: 'off' } })).toBeNull();
+    expect(createSemanticAnalyzer({ env: { VEYRA_SEMANTIC_PROVIDER: 'off' } })).toBeNull();
   });
 });
 

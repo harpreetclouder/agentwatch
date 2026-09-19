@@ -12,7 +12,7 @@ export default async function AgentsPage() {
       <>
         <PageHeader title="Agents" />
         <EmptyState>
-          Security plane not initialized. Run <Mono>jev init</Mono>.
+          Security plane not initialized. Run <Mono>veyra init</Mono>.
         </EmptyState>
       </>
     );

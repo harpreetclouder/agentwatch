@@ -14,7 +14,7 @@ export async function cmdEvents(args: string[]): Promise<number> {
 
   const store = openLocalStore();
   if (!store) {
-    console.log('No security plane found. Run `jev init` first.');
+    console.log('No security plane found. Run `veyra init` first.');
     console.log('');
     return 1;
   }

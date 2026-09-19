@@ -1,5 +1,5 @@
 {
-  "name": "@jev/adapter-core",
+  "name": "@veyra/adapter-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@jev/agent-events": "workspace:*"
+    "@veyra/agent-events": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

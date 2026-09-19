@@ -1,7 +1,13 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
-import { extractPathCandidates, resolvePath } from '../paths.js';
+import {
+  canonicalizePath,
+  extractPathCandidates,
+  isPathAllowed,
+  isPathDenied,
+} from '../paths.js';
 import { classifySecretPath } from '../classify/secrets.js';
+import { sanitizeEvidence } from '../redact.js';
 
 /**
  * Block credential / secret material access outside declared authority.
@@ -13,10 +19,6 @@ export const secretAccessPolicy: Policy = {
   severity: 'HIGH',
 
   evaluate(event: AgentEvent, context: AgentContext): SecurityDecision | null {
-    if (context.securityState === 'REVOKED' || context.securityState === 'QUARANTINED') {
-      // Quarantined agents: still emit decisions on secret touches for evidence.
-    }
-
     const relevantTypes = new Set(['file_read', 'file_write', 'shell', 'tool_call', 'mcp']);
     if (!relevantTypes.has(event.type)) {
       return null;
@@ -28,29 +30,47 @@ export const secretAccessPolicy: Policy = {
       return null;
     }
 
+    // Explicit deny scopes / deniedPaths win first
     for (const candidate of candidates) {
-      const resolved = resolvePath(candidate, cwd);
+      if (isPathDenied(candidate, context.deniedPaths ?? [], cwd)) {
+        const resolved = canonicalizePath(candidate, cwd);
+        return {
+          decision: 'BLOCK',
+          severity: 'HIGH',
+          ruleId: 'SECRET_ACCESS',
+          reason: 'Path is on the denied resource list.',
+          evidence: sanitizeEvidence([
+            `resource=${candidate}`,
+            `resolved=${resolved}`,
+            `operation=read`,
+            `matchedRule=deniedPaths`,
+            `task=${context.task?.id ?? 'none'}`,
+            `session=${context.sessionId}`,
+          ]),
+          eventId: event.id,
+        };
+      }
+    }
+
+    for (const candidate of candidates) {
+      const resolved = canonicalizePath(candidate, cwd);
       const match = classifySecretPath(resolved) ?? classifySecretPath(candidate);
       if (!match) {
         continue;
       }
 
-      const allowed = isExplicitlyAllowed(context, resolved, candidate);
-      if (allowed) {
+      if (isPathAllowed(candidate, context.allowedPaths ?? [], cwd)) {
         return null;
       }
 
-      const evidence = [
-        `resource=${candidate}`,
-        `resolved=${resolved}`,
-        `secret_category=${match.category}`,
-        `secret_label=${match.label}`,
-        `task=${context.task?.id ?? 'none'}`,
-        'no_credential_authority',
-      ];
-
-      if (event.context?.taskDescription) {
-        evidence.push(`task_description=${event.context.taskDescription}`);
+      const allowedByScope = (context.resourceScopes ?? []).some(
+        (s) =>
+          (s.type === 'FILE' || s.type === 'DIRECTORY') &&
+          s.effect === 'allow' &&
+          isPathAllowed(candidate, [s.pattern], cwd),
+      );
+      if (allowedByScope) {
+        return null;
       }
 
       return {
@@ -58,9 +78,19 @@ export const secretAccessPolicy: Policy = {
         severity: 'HIGH',
         ruleId: 'SECRET_ACCESS',
         reason:
-          'Credential or secret access is outside the declared task authority. ' +
+          'Agent does not have authority to access secret-bearing files. ' +
           'A jailbreak must not become authority.',
-        evidence,
+        evidence: sanitizeEvidence([
+          `resource=${candidate}`,
+          `resolved=${resolved}`,
+          `operation=${event.type === 'file_write' ? 'write' : 'read'}`,
+          `category=${match.category}`,
+          `matchedRule=secret-file`,
+          `secret_label=${match.label}`,
+          `task=${context.task?.id ?? 'none'}`,
+          `session=${context.sessionId}`,
+          'no_credential_authority',
+        ]),
         eventId: event.id,
       };
     }
@@ -68,20 +98,3 @@ export const secretAccessPolicy: Policy = {
     return null;
   },
 };
-
-function isExplicitlyAllowed(
-  context: AgentContext,
-  resolved: string,
-  raw: string,
-): boolean {
-  const allowed = context.allowedPaths ?? [];
-  if (allowed.length === 0) {
-    return false;
-  }
-
-  const haystacks = [resolved, raw].map((s) => s.toLowerCase());
-  return allowed.some((entry) => {
-    const needle = entry.toLowerCase();
-    return haystacks.some((h) => h === needle || h.endsWith(needle) || h.includes(needle));
-  });
-}

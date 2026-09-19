@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  canonicalizePath,
+  isPathAllowed,
+  isPathDenied,
+  isPathInside,
+  matchesResourceScope,
+  resolvePath,
+} from '../src/paths.js';
+
+describe('path authorization', () => {
+  it('does not treat similar directory names as inside', () => {
+    expect(isPathInside('/workspace/project-not-secret/.env', '/workspace/project')).toBe(
+      false,
+    );
+    expect(isPathInside('/workspace/project/.env', '/workspace/project')).toBe(true);
+    expect(isPathInside('/repo/sub/.env', '/repo')).toBe(true);
+    expect(isPathInside('/repo-other/.env', '/repo')).toBe(false);
+  });
+
+  it('rejects ../ traversal escapes', () => {
+    const outside = resolvePath('/repo/../outside.txt', '/repo');
+    expect(isPathInside(outside, '/repo')).toBe(false);
+
+    const escaped = resolvePath('/repo/sub/../../outside.txt', '/repo');
+    expect(isPathInside(escaped, '/repo')).toBe(false);
+  });
+
+  it('isPathAllowed distinguishes file vs directory scope', () => {
+    expect(isPathAllowed('/repo/.env', ['.env'], '/repo')).toBe(true);
+    expect(isPathAllowed('/repo/.env.local', ['.env'], '/repo')).toBe(false);
+    expect(isPathAllowed('/repo/src/a.ts', ['src/**'], '/repo')).toBe(true);
+    expect(isPathAllowed('/repo/secrets/x', ['src/**'], '/repo')).toBe(false);
+    expect(isPathAllowed('/repo-other/.env', ['/repo'], '/')).toBe(false);
+  });
+
+  it('isPathDenied blocks directory trees', () => {
+    expect(isPathDenied('/repo/secrets/key.pem', ['secrets/**'], '/repo')).toBe(true);
+    expect(isPathDenied('/repo/src/a.ts', ['secrets/**'], '/repo')).toBe(false);
+    expect(isPathDenied('/repo/.env', ['.env'], '/repo')).toBe(true);
+  });
+
+  it('matchesResourceScope for FILE allow/deny', () => {
+    expect(
+      matchesResourceScope('/repo/src/a.ts', { type: 'FILE', pattern: 'src/**' }, '/repo', 'read'),
+    ).toBe(true);
+    expect(
+      matchesResourceScope(
+        '/repo/.env',
+        { type: 'FILE', pattern: '.env', effect: 'deny' },
+        '/repo',
+        'read',
+      ),
+    ).toBe(true);
+  });
+
+  it('canonicalizes symlinks when present', () => {
+    const root = mkdtempSync(join(tmpdir(), 'veyra-path-'));
+    try {
+      mkdirSync(join(root, 'real'), { recursive: true });
+      writeFileSync(join(root, 'real', 'secret.env'), 'x=1\n');
+      const link = join(root, 'link-secret.env');
+      try {
+        symlinkSync(join(root, 'real', 'secret.env'), link);
+      } catch {
+        // Windows without symlink privilege — skip
+        return;
+      }
+      const canon = canonicalizePath(link, root);
+      expect(canon).toContain('real');
+      expect(isPathInside(canon, join(root, 'real'))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

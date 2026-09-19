@@ -1,0 +1,9 @@
+{
+  "version": "0.1.0",
+  "installedAt": "2026-09-19T13:06:56.535Z",
+  "adapters": [
+    "claude-code",
+    "codex"
+  ],
+  "cliEntry": "/Users/macbook/jev/apps/cli/dist/index.js"
+}

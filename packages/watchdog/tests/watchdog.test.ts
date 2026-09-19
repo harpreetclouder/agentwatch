@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createAgentEvent, type AgentContext } from '@jev/agent-events';
-import { createId } from '@jev/shared';
-import { SqliteJevStore } from '@jev/storage';
+import { createAgentEvent, type AgentContext } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
+import { SqliteVeyraStore } from '@veyra/storage';
 import {
   Watchdog,
   injectionThenSecretRule,
@@ -107,7 +107,7 @@ describe('trajectory rules', () => {
 
 describe('Watchdog', () => {
   it('correlates injection then secret and blocks via policy + trajectory', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');
@@ -200,7 +200,7 @@ describe('Watchdog', () => {
   });
 
   it('hard-denies further actions when session is already quarantined', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const now = new Date().toISOString();
     const agentId = createId('agent');
     const sessionId = createId('sess');

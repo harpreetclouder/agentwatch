@@ -10,6 +10,7 @@ import { cmdWatch } from './commands/watch.js';
 import { cmdBridge } from './commands/bridge.js';
 import { cmdHook } from './commands/hook.js';
 import { cmdQuarantine, cmdResume } from './commands/enforcement.js';
+import { cmdDemo } from './commands/demo.js';
 
 export async function runCli(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -42,6 +43,8 @@ export async function runCli(argv: string[]): Promise<number> {
       return cmdBridge(rest);
     case 'hook':
       return cmdHook(rest);
+    case 'demo':
+      return cmdDemo(rest);
     case 'quarantine':
       return cmdQuarantine(rest);
     case 'resume':

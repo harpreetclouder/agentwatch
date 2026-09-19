@@ -1,20 +1,21 @@
 export function printBanner(): void {
   console.log('');
-  console.log('  JEV WATCHDOG');
+  console.log('  VEYRA WATCHDOG');
   console.log('  Agent observability + authority + security enforcement');
   console.log('');
 }
 
 export function printHelp(): void {
   printBanner();
-  console.log('Usage: jev <command>');
+  console.log('Usage: veyra <command>');
   console.log('');
   console.log('Commands:');
-  console.log('  init         Initialize local .jev/ security plane');
+  console.log('  init         Initialize local .veyra/ security plane');
   console.log('  watch        Observe agent activity');
   console.log('  bridge       Install/uninstall live Claude Code / Codex hooks');
-  console.log('  attack       Run controlled security attack simulations (--list, --id)');
-  console.log('  explain      Show evidence-based security report');
+  console.log('  attack       Run attack lab (--mode=simulation|runtime)');
+  console.log('  demo         Controlled real-hook demo (block .env before execution)');
+  console.log('  explain      Show session incident timeline or last attack report');
   console.log('  status       Show session / enforcement status');
   console.log('  events       List normalized agent events');
   console.log('  policy       Inspect security policies');
@@ -25,5 +26,6 @@ export function printHelp(): void {
   console.log('  help         Show this help');
   console.log('');
   console.log('Core thesis: a jailbreak should never become authority.');
+  console.log('Enforcement: user-space hooks — not an OS sandbox.');
   console.log('');
 }

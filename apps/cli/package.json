@@ -1,32 +1,54 @@
 {
-  "name": "@jev/cli",
+  "name": "veyra",
   "version": "0.1.0",
-  "private": true,
+  "description": "VEYRA Watchdog — policy-based runtime enforcement for autonomous AI agents",
   "type": "module",
   "bin": {
-    "jev": "./dist/index.js"
+    "veyra": "./dist/bundle/veyra.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist/bundle",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ai-agents",
+    "security",
+    "claude-code",
+    "watchdog",
+    "policy-engine",
+    "veyra"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harpreetclouder/agentwatch"
+  },
+  "license": "UNLICENSED",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsup && node scripts/fix-bundle-imports.mjs",
+    "bundle": "tsup && node scripts/fix-bundle-imports.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src tests",
     "test": "vitest run",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "pack:smoke": "pnpm build && npm pack --dry-run"
   },
   "dependencies": {
-    "@jev/adapter-claude-code": "workspace:*",
-    "@jev/adapter-codex": "workspace:*",
-    "@jev/adapter-core": "workspace:*",
-    "@jev/agent-events": "workspace:*",
-    "@jev/attack-engine": "workspace:*",
-    "@jev/policy-engine": "workspace:*",
-    "@jev/shared": "workspace:*",
-    "@jev/storage": "workspace:*",
-    "@jev/watchdog": "workspace:*"
+    "@veyra/adapter-claude-code": "workspace:*",
+    "@veyra/adapter-codex": "workspace:*",
+    "@veyra/adapter-core": "workspace:*",
+    "@veyra/agent-events": "workspace:*",
+    "@veyra/attack-engine": "workspace:*",
+    "@veyra/policy-engine": "workspace:*",
+    "@veyra/shared": "workspace:*",
+    "@veyra/storage": "workspace:*",
+    "@veyra/watchdog": "workspace:*"
   },
   "devDependencies": {
+    "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.1"
   }

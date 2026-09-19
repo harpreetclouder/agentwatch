@@ -1,5 +1,5 @@
-import type { AgentEvent } from '@jev/agent-events';
-import type { SecurityState } from '@jev/shared';
+import type { AgentEvent } from '@veyra/agent-events';
+import type { SecurityState } from '@veyra/shared';
 import type {
   AgentRecord,
   SecurityDecisionRecord,
@@ -63,7 +63,7 @@ export interface StatsRepository {
  * Unit of work for the local MVP store.
  * Business logic depends on this interface — not on SQLite.
  */
-export interface JevStore {
+export interface VeyraStore {
   agents: AgentRepository;
   sessions: SessionRepository;
   events: EventRepository;

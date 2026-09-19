@@ -1,7 +1,7 @@
-import { createAgentEvent, type AgentEvent, type AgentEventType } from '@jev/agent-events';
-import { createId } from '@jev/shared';
-import type { SecurityDecision } from '@jev/policy-engine';
-import type { BehaviorSignal } from '@jev/watchdog';
+import { createAgentEvent, type AgentEvent, type AgentEventType } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
+import type { SecurityDecision } from '@veyra/policy-engine';
+import type { BehaviorSignal } from '@veyra/watchdog';
 import type { AttackContext, AttackResult } from '../types.js';
 import { simulateEvent, type SimulatedStepResult } from '../simulator.js';
 

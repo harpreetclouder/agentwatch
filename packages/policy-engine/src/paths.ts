@@ -1,6 +1,7 @@
-import { isAbsolute, normalize, resolve, sep } from 'node:path';
+import { isAbsolute, normalize, resolve, sep, relative } from 'node:path';
+import { realpathSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import type { AgentEvent } from '@jev/agent-events';
+import type { AgentEvent } from '@veyra/agent-events';
 
 /**
  * Expand ~ and normalize without executing anything.
@@ -16,12 +17,34 @@ export function expandHome(input: string): string {
 }
 
 /**
- * Resolve a path candidate against cwd. Does not follow symlinks (MVP).
+ * Resolve a path candidate against cwd without symlink follow (fast path).
  */
 export function resolvePath(candidate: string, cwd: string): string {
   const expanded = expandHome(candidate.trim());
   const resolved = isAbsolute(expanded) ? normalize(expanded) : resolve(cwd, expanded);
   return normalize(resolved);
+}
+
+/**
+ * Canonical absolute path: expand ~, resolve against base, normalize,
+ * optionally follow symlinks when the path exists.
+ * Does not execute shell; fails closed to normalized resolve on symlink errors.
+ */
+export function canonicalizePath(
+  candidate: string,
+  baseDir: string,
+  options: { followSymlinks?: boolean } = {},
+): string {
+  const follow = options.followSymlinks !== false;
+  const resolved = resolvePath(candidate, baseDir);
+  if (!follow || !existsSync(resolved)) {
+    return resolved;
+  }
+  try {
+    return normalize(realpathSync(resolved));
+  } catch {
+    return resolved;
+  }
 }
 
 export function basenameOf(pathValue: string): string {
@@ -34,6 +57,126 @@ export function pathSegments(pathValue: string): string[] {
   return normalize(pathValue)
     .split(/[/\\]/)
     .filter((segment) => segment.length > 0 && segment !== '.');
+}
+
+/**
+ * True when `child` is the same as `parent` or a descendant of `parent`.
+ * Uses path.relative — never substring matching — so `/repo-other`
+ * is not considered inside `/repo`.
+ * Both sides are resolved to absolute normalized paths (and realpath when present)
+ * so `/var` vs `/private/var` on macOS does not false-negative.
+ */
+export function isPathInside(child: string, parent: string): boolean {
+  const normalizedChild = canonicalizePath(child, process.cwd());
+  const normalizedParent = canonicalizePath(parent, process.cwd());
+  if (normalizedChild === normalizedParent) {
+    return true;
+  }
+  const rel = relative(normalizedParent, normalizedChild);
+  if (!rel || rel === '') {
+    return true;
+  }
+  if (rel.startsWith('..') || isAbsolute(rel)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Whether `candidate` is explicitly allowed by any entry in `allowed`.
+ * Entries may be files or directories (directory ⇒ descendants allowed).
+ * Globs ending in /** mean directory tree under the prefix.
+ */
+export function isPathAllowed(
+  candidate: string,
+  allowed: readonly string[],
+  baseDir: string,
+): boolean {
+  if (allowed.length === 0) {
+    return false;
+  }
+  const target = canonicalizePath(candidate, baseDir);
+  for (const entry of allowed) {
+    const pattern = entry.trim();
+    if (!pattern) continue;
+    if (pattern.endsWith('/**') || pattern.endsWith('\\**')) {
+      const dir = canonicalizePath(pattern.slice(0, -3), baseDir);
+      if (isPathInside(target, dir)) {
+        return true;
+      }
+      continue;
+    }
+    const allowedResolved = canonicalizePath(pattern, baseDir);
+    if (target === allowedResolved || isPathInside(target, allowedResolved)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether `candidate` is explicitly denied.
+ * Directory deny blocks the directory and all descendants.
+ */
+export function isPathDenied(
+  candidate: string,
+  denied: readonly string[],
+  baseDir: string,
+): boolean {
+  if (denied.length === 0) {
+    return false;
+  }
+  const target = canonicalizePath(candidate, baseDir);
+  for (const entry of denied) {
+    const pattern = entry.trim();
+    if (!pattern) continue;
+    if (pattern.endsWith('/**') || pattern.endsWith('\\**')) {
+      const dir = canonicalizePath(pattern.slice(0, -3), baseDir);
+      if (isPathInside(target, dir)) {
+        return true;
+      }
+      continue;
+    }
+    const deniedResolved = canonicalizePath(pattern, baseDir);
+    if (target === deniedResolved || isPathInside(target, deniedResolved)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export type ResourceMatchScope = {
+  type: string;
+  pattern: string;
+  operations?: string[];
+  effect?: 'allow' | 'deny';
+};
+
+/**
+ * Match a file path against a FILE resource scope pattern.
+ */
+export function matchesResourceScope(
+  candidate: string,
+  scope: ResourceMatchScope,
+  baseDir: string,
+  operation?: string,
+): boolean {
+  if (scope.type.toUpperCase() !== 'FILE' && scope.type.toUpperCase() !== 'DIRECTORY') {
+    return false;
+  }
+  if (
+    operation &&
+    scope.operations &&
+    scope.operations.length > 0 &&
+    !scope.operations.map((o) => o.toLowerCase()).includes(operation.toLowerCase())
+  ) {
+    return false;
+  }
+  const effect = scope.effect ?? 'allow';
+  if (effect === 'deny') {
+    return isPathDenied(candidate, [scope.pattern], baseDir);
+  }
+  return isPathAllowed(candidate, [scope.pattern], baseDir);
 }
 
 /**
@@ -85,7 +228,6 @@ function looksLikePath(value: string): boolean {
   if (value.includes('\0')) {
     return false;
   }
-  // Skip pure flags / options.
   if (value.startsWith('-') && !value.startsWith('./') && !value.startsWith('../')) {
     return false;
   }
@@ -100,7 +242,6 @@ function looksLikePath(value: string): boolean {
 
 /**
  * Lightweight argv tokenizer — not a full shell parser.
- * Enough for `cat .env` / `cat ~/.aws/credentials` style attacks.
  */
 export function tokenizeCommand(command: string): string[] {
   const tokens: string[] = [];
@@ -138,14 +279,8 @@ export function tokenizeCommand(command: string): string[] {
   return tokens;
 }
 
-export function isPathInside(child: string, parent: string): boolean {
-  const normalizedChild = normalize(resolve(child));
+/** @deprecated Prefer isPathInside — kept for callers that imported sep helpers. */
+export function pathPrefix(parent: string): string {
   const normalizedParent = normalize(resolve(parent));
-  if (normalizedChild === normalizedParent) {
-    return true;
-  }
-  const prefix = normalizedParent.endsWith(sep)
-    ? normalizedParent
-    : normalizedParent + sep;
-  return normalizedChild.startsWith(prefix);
+  return normalizedParent.endsWith(sep) ? normalizedParent : normalizedParent + sep;
 }

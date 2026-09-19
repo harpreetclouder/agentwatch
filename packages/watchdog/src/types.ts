@@ -1,6 +1,6 @@
-import type { AgentEvent, AgentContext } from '@jev/agent-events';
-import type { SecurityDecision } from '@jev/policy-engine';
-import type { Severity } from '@jev/shared';
+import type { AgentEvent, AgentContext } from '@veyra/agent-events';
+import type { SecurityDecision } from '@veyra/policy-engine';
+import type { Severity } from '@veyra/shared';
 
 /**
  * Correlated behavior signal across multiple events.

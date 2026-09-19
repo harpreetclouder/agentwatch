@@ -19,7 +19,7 @@ export default async function SecurityPage() {
       <>
         <PageHeader title="Security events" />
         <EmptyState>
-          Security plane not initialized. Run <Mono>jev init</Mono>.
+          Security plane not initialized. Run <Mono>veyra init</Mono>.
         </EmptyState>
       </>
     );

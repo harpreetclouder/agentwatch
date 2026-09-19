@@ -27,6 +27,7 @@ export type {
   AgentTask,
   AgentEnvironment,
   SecurityState,
+  ContextResourceScope,
 } from './context.js';
 
 export type {

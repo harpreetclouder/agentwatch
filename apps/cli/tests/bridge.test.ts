@@ -20,10 +20,10 @@ function tempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), 'jev-bridge-'));
   tempDirs.push(dir);
   writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
-  mkdirSync(join(dir, '.jev'), { recursive: true });
+  mkdirSync(join(dir, '.veyra'), { recursive: true });
   writeFileSync(
-    join(dir, '.jev', 'config.json'),
-    `${JSON.stringify({ schemaVersion: '0.1.0', createdAt: new Date().toISOString(), dbPath: 'jev.sqlite' }, null, 2)}\n`,
+    join(dir, '.veyra', 'config.json'),
+    `${JSON.stringify({ schemaVersion: '0.1.0', createdAt: new Date().toISOString(), dbPath: 'veyra.sqlite' }, null, 2)}\n`,
   );
   return dir;
 }
@@ -50,7 +50,7 @@ describe('bridge install', () => {
     expect(status.codexInstalled).toBe(true);
   });
 
-  it('preserves existing non-JEV hooks on install/uninstall', () => {
+  it('preserves existing non-VEYRA hooks on install/uninstall', () => {
     const cwd = tempProject();
     mkdirSync(join(cwd, '.claude'), { recursive: true });
     writeFileSync(

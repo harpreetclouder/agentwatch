@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Environment, SecurityState } from '@jev/shared';
+import type { Environment, SecurityState } from '@veyra/shared';
 import type { SessionRecord, SessionStatus } from '../types.js';
 import type { SessionRepository } from '../repositories.js';
 

@@ -2,11 +2,11 @@ import { basenameOf, isPathInside, pathSegments, resolvePath } from '../paths.js
 
 const SECURITY_PLANE_BASENAMES = new Set([
   'security-state.json',
-  'jev.sqlite',
+  'veyra.sqlite',
   'config.json',
 ]);
 
-const SECURITY_PLANE_SEGMENTS = new Set(['.jev']);
+const SECURITY_PLANE_SEGMENTS = new Set(['.veyra']);
 
 /**
  * Detect access/modification of the Jev security control plane.
@@ -19,21 +19,21 @@ export function classifySecurityPlanePath(
   const segments = pathSegments(resolved).map((s) => s.toLowerCase());
   const base = basenameOf(resolved).toLowerCase();
 
-  if (segments.includes('.jev')) {
+  if (segments.includes('.veyra')) {
     return { kind: 'jev_directory', resolved };
   }
 
-  if (SECURITY_PLANE_BASENAMES.has(base) && segments.includes('.jev')) {
+  if (SECURITY_PLANE_BASENAMES.has(base) && segments.includes('.veyra')) {
     return { kind: 'jev_file', resolved };
   }
 
-  // Relative mentions of security-plane files under cwd/.jev
-  const jevRoot = resolvePath('.jev', workingDirectory);
+  // Relative mentions of security-plane files under cwd/.veyra
+  const jevRoot = resolvePath('.veyra', workingDirectory);
   if (isPathInside(resolved, jevRoot)) {
     return { kind: 'inside_jev_root', resolved };
   }
 
-  // Explicit relative targets like ".jev/policies/..." before resolve edge cases
+  // Explicit relative targets like ".veyra/policies/..." before resolve edge cases
   const rawSegments = pathSegments(pathValue).map((s) => s.toLowerCase());
   if (rawSegments.some((s) => SECURITY_PLANE_SEGMENTS.has(s))) {
     return { kind: 'jev_path_reference', resolved };
@@ -44,7 +44,7 @@ export function classifySecurityPlanePath(
     /revocation/i.test(base) ||
     (/watchdog/i.test(base) && /config/i.test(pathValue))
   ) {
-    if (rawSegments.includes('.jev') || pathValue.includes('.jev')) {
+    if (rawSegments.includes('.veyra') || pathValue.includes('.veyra')) {
       return { kind: 'security_config', resolved };
     }
   }

@@ -1,7 +1,7 @@
-import type { Severity } from '@jev/shared';
-import { severityRank } from '@jev/shared';
-import type { DecisionOutcome } from '@jev/storage';
-import type { SecurityState } from '@jev/shared';
+import type { Severity } from '@veyra/shared';
+import { severityRank } from '@veyra/shared';
+import type { DecisionOutcome } from '@veyra/storage';
+import type { SecurityState } from '@veyra/shared';
 import type { SecurityDecision } from './types.js';
 
 /**

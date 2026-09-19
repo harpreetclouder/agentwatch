@@ -1,6 +1,12 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
-import { extractPathCandidates, resolvePath, pathSegments } from '../paths.js';
+import {
+  canonicalizePath,
+  extractPathCandidates,
+  isPathAllowed,
+  pathSegments,
+} from '../paths.js';
+import { sanitizeEvidence } from '../redact.js';
 
 const CREDENTIAL_DIR_MARKERS = new Set([
   '.aws',
@@ -8,7 +14,6 @@ const CREDENTIAL_DIR_MARKERS = new Set([
   '.gnupg',
   '.kube',
   '.docker',
-  '.config',
 ]);
 
 const CREDENTIAL_BASENAMES = new Set([
@@ -20,8 +25,6 @@ const CREDENTIAL_BASENAMES = new Set([
   'id_dsa',
   'service-account.json',
   'serviceAccount.json',
-  'token',
-  'token.json',
 ]);
 
 /**
@@ -39,7 +42,7 @@ export const credentialAccessPolicy: Policy = {
 
     const cwd = event.context?.cwd ?? context.workingDirectory;
     for (const candidate of extractPathCandidates(event)) {
-      const resolved = resolvePath(candidate, cwd);
+      const resolved = canonicalizePath(candidate, cwd);
       const segments = pathSegments(resolved).map((s) => s.toLowerCase());
       const base = (segments[segments.length - 1] ?? '').toLowerCase();
 
@@ -50,19 +53,17 @@ export const credentialAccessPolicy: Policy = {
         continue;
       }
 
-      // Prefer home/config credential stores over random "token" filenames in src/
       const looksLikeStore =
         inCredDir ||
-        resolved.includes(`${pathSep()}.aws${pathSep()}`) ||
-        resolved.includes(`${pathSep()}.ssh${pathSep()}`) ||
         base === 'credentials' ||
-        base.endsWith('service-account.json');
+        base.endsWith('service-account.json') ||
+        base === 'serviceaccount.json';
 
       if (!looksLikeStore) {
         continue;
       }
 
-      if (isAllowed(context, resolved, candidate)) {
+      if (isPathAllowed(candidate, context.allowedPaths ?? [], cwd)) {
         return null;
       }
 
@@ -71,12 +72,14 @@ export const credentialAccessPolicy: Policy = {
         severity: 'HIGH',
         ruleId: 'CREDENTIAL_ACCESS',
         reason: 'Access to a credential store location is outside declared authority.',
-        evidence: [
+        evidence: sanitizeEvidence([
           `resource=${candidate}`,
           `resolved=${resolved}`,
+          `operation=read`,
+          `matchedRule=credential-store`,
           `task=${context.task?.id ?? 'none'}`,
-          'credential_store_access',
-        ],
+          `session=${context.sessionId}`,
+        ]),
         eventId: event.id,
       };
     }
@@ -84,19 +87,3 @@ export const credentialAccessPolicy: Policy = {
     return null;
   },
 };
-
-function pathSep(): string {
-  return '/';
-}
-
-function isAllowed(context: AgentContext, resolved: string, raw: string): boolean {
-  const allowed = context.allowedPaths ?? [];
-  if (allowed.length === 0) {
-    return false;
-  }
-  const haystacks = [resolved, raw].map((s) => s.toLowerCase());
-  return allowed.some((entry) => {
-    const needle = entry.toLowerCase();
-    return haystacks.some((h) => h === needle || h.endsWith(needle) || h.includes(needle));
-  });
-}

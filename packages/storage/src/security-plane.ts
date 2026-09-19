@@ -1,11 +1,11 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-export const JEV_DIR_NAME = '.jev';
-export const JEV_DB_FILE = 'jev.sqlite';
-export const JEV_CONFIG_FILE = 'config.json';
+export const VEYRA_DIR_NAME = '.veyra';
+export const VEYRA_DB_FILE = 'veyra.sqlite';
+export const VEYRA_CONFIG_FILE = 'config.json';
 
-export type JevLocalConfig = {
+export type VeyraLocalConfig = {
   schemaVersion: string;
   createdAt: string;
   dbPath: string;
@@ -19,15 +19,15 @@ export type InitSecurityPlaneResult = {
 };
 
 /**
- * Prefer an existing .jev plane, else the workspace root (pnpm-workspace.yaml),
- * else the starting directory. Avoids creating .jev under apps/cli when run via pnpm --filter.
+ * Prefer an existing .veyra plane, else the workspace root (pnpm-workspace.yaml),
+ * else the starting directory. Avoids creating .veyra under apps/cli when run via pnpm --filter.
  */
 export function resolveProjectRoot(startDir: string = process.cwd()): string {
   let dir = startDir;
   let workspaceRoot: string | null = null;
 
   for (;;) {
-    if (existsSync(join(dir, JEV_DIR_NAME, JEV_CONFIG_FILE))) {
+    if (existsSync(join(dir, VEYRA_DIR_NAME, VEYRA_CONFIG_FILE))) {
       return dir;
     }
     if (workspaceRoot === null && existsSync(join(dir, 'pnpm-workspace.yaml'))) {
@@ -49,9 +49,9 @@ export function resolveProjectRoot(startDir: string = process.cwd()): string {
  */
 export function initSecurityPlane(cwd: string = process.cwd()): InitSecurityPlaneResult {
   const projectRoot = resolveProjectRoot(cwd);
-  const rootDir = join(projectRoot, JEV_DIR_NAME);
-  const configPath = join(rootDir, JEV_CONFIG_FILE);
-  const dbPath = join(rootDir, JEV_DB_FILE);
+  const rootDir = join(projectRoot, VEYRA_DIR_NAME);
+  const configPath = join(rootDir, VEYRA_CONFIG_FILE);
+  const dbPath = join(rootDir, VEYRA_DB_FILE);
   const created = !existsSync(rootDir);
 
   mkdirSync(join(rootDir, 'policies'), { recursive: true });
@@ -59,10 +59,10 @@ export function initSecurityPlane(cwd: string = process.cwd()): InitSecurityPlan
   mkdirSync(join(rootDir, 'events'), { recursive: true });
 
   if (!existsSync(configPath)) {
-    const config: JevLocalConfig = {
+    const config: VeyraLocalConfig = {
       schemaVersion: '0.1.0',
       createdAt: new Date().toISOString(),
-      dbPath: JEV_DB_FILE,
+      dbPath: VEYRA_DB_FILE,
     };
     writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   }
@@ -71,14 +71,14 @@ export function initSecurityPlane(cwd: string = process.cwd()): InitSecurityPlan
   if (!existsSync(readmePath)) {
     writeFileSync(
       readmePath,
-      `# JEV Security Plane
+      `# VEYRA Security Plane
 
 This directory is part of the Jev security control plane.
 
 Agents must NOT modify:
 - config.json
 - policies/
-- jev.sqlite
+- veyra.sqlite
 - security state
 - event / decision history
 
@@ -92,19 +92,19 @@ Production deployments should place this plane outside the agent trust boundary.
   return { rootDir, configPath, dbPath, created };
 }
 
-export function resolveJevDbPath(cwd: string = process.cwd()): string | null {
+export function resolveVeyraDbPath(cwd: string = process.cwd()): string | null {
   const projectRoot = resolveProjectRoot(cwd);
-  const rootDir = join(projectRoot, JEV_DIR_NAME);
-  const configPath = join(rootDir, JEV_CONFIG_FILE);
+  const rootDir = join(projectRoot, VEYRA_DIR_NAME);
+  const configPath = join(rootDir, VEYRA_CONFIG_FILE);
   if (!existsSync(configPath)) {
     return null;
   }
 
   try {
-    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as Partial<JevLocalConfig>;
-    const relative = raw.dbPath ?? JEV_DB_FILE;
+    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as Partial<VeyraLocalConfig>;
+    const relative = raw.dbPath ?? VEYRA_DB_FILE;
     return join(rootDir, relative);
   } catch {
-    return join(rootDir, JEV_DB_FILE);
+    return join(rootDir, VEYRA_DB_FILE);
   }
 }

@@ -1,7 +1,7 @@
-import type { SecurityState } from '@jev/shared';
-import { createId } from '@jev/shared';
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
-import type { JevStore, SessionRecord } from '@jev/storage';
+import type { SecurityState } from '@veyra/shared';
+import { createId } from '@veyra/shared';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
+import type { VeyraStore, SessionRecord } from '@veyra/storage';
 import type { SecurityDecision } from './types.js';
 
 /** Sessions in these states must not execute agent tool actions. */
@@ -11,7 +11,7 @@ export function isEnforcementFrozen(state: SecurityState): boolean {
 
 /**
  * Synthetic decision when a frozen session attempts further action.
- * Operator must `jev resume` — agents cannot self-clear quarantine.
+ * Operator must `veyra resume` — agents cannot self-clear quarantine.
  */
 export function frozenSessionDecision(
   event: AgentEvent,
@@ -24,7 +24,7 @@ export function frozenSessionDecision(
     reason:
       context.securityState === 'REVOKED'
         ? 'Session authority is REVOKED. Operator intervention required.'
-        : 'Session is QUARANTINED. Operator must run `jev resume` before actions proceed.',
+        : 'Session is QUARANTINED. Operator must run `veyra resume` before actions proceed.',
     evidence: [
       `session=${context.sessionId}`,
       `state=${context.securityState}`,
@@ -44,7 +44,7 @@ export type SessionControlResult = {
 };
 
 async function resolveTargetSession(
-  store: JevStore,
+  store: VeyraStore,
   sessionId?: string,
 ): Promise<SessionRecord | null> {
   if (sessionId) {
@@ -60,17 +60,17 @@ async function resolveTargetSession(
  * Agents must never call this — CLI / control plane only.
  */
 export async function quarantineSession(
-  store: JevStore,
+  store: VeyraStore,
   options: { sessionId?: string; reason?: string } = {},
 ): Promise<SessionControlResult> {
   const session = await resolveTargetSession(store, options.sessionId);
   if (!session) {
-    throw new Error('No session found to quarantine. Run `jev watch` or `jev attack` first.');
+    throw new Error('No session found to quarantine. Run `veyra watch` or `veyra attack` first.');
   }
 
   const previous =
     (await store.securityState.get(session.id))?.state ?? session.securityState;
-  const reason = options.reason ?? 'Operator quarantine via jev quarantine';
+  const reason = options.reason ?? 'Operator quarantine via veyra quarantine';
 
   await store.securityState.set(session.id, 'QUARANTINED', reason);
   const updated: SessionRecord = {
@@ -93,7 +93,7 @@ export async function quarantineSession(
  * Never callable by the agent under observation.
  */
 export async function resumeSession(
-  store: JevStore,
+  store: VeyraStore,
   options: { sessionId?: string; reason?: string } = {},
 ): Promise<SessionControlResult> {
   const session = await resolveTargetSession(store, options.sessionId);
@@ -106,7 +106,7 @@ export async function resumeSession(
 
   if (previous === 'REVOKED') {
     throw new Error(
-      'Session is REVOKED and cannot be resumed. Create a new session with `jev watch`.',
+      'Session is REVOKED and cannot be resumed. Create a new session with `veyra watch`.',
     );
   }
 
@@ -116,7 +116,7 @@ export async function resumeSession(
     );
   }
 
-  const reason = options.reason ?? 'Operator resume via jev resume';
+  const reason = options.reason ?? 'Operator resume via veyra resume';
   await store.securityState.set(session.id, 'NORMAL', reason);
 
   const updated: SessionRecord = {

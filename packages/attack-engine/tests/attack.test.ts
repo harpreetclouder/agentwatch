@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SqliteJevStore } from '@jev/storage';
+import { SqliteVeyraStore } from '@veyra/storage';
 import {
   createAttackLab,
   formatExplainReport,
@@ -21,7 +21,7 @@ describe('attack corpus', () => {
   });
 
   it('contains all corpus attacks when run together', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const { summary, results } = await runAttacks({ store });
 
     expect(results).toHaveLength(10);
@@ -37,7 +37,7 @@ describe('attack corpus', () => {
 
 describe('prompt injection → credential access', () => {
   it('contains the .env access attempt via SECRET_ACCESS', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const { summary, report, results } = await runAttacks({
       store,
       attackIds: ['01-prompt-injection-secrets'],
@@ -66,7 +66,7 @@ describe('prompt injection → credential access', () => {
   });
 
   it('records a timeline with blocked secret access', async () => {
-    const store = SqliteJevStore.openMemory();
+    const store = SqliteVeyraStore.openMemory();
     const { report } = await runAttacks({
       store,
       attackIds: ['01-prompt-injection-secrets'],

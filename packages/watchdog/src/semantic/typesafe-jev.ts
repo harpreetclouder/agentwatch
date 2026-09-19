@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { SemanticAnalyzer, SemanticAssessment, SemanticRisk } from '../types.js';
 
 export const DEFAULT_DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
@@ -121,8 +121,8 @@ export class TypesafeJevSemanticAnalyzer implements SemanticAnalyzer {
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${this.options.apiKey}`,
-          'HTTP-Referer': 'https://github.com/jev-watchdog',
-          'X-Title': 'JEV Watchdog',
+          'HTTP-Referer': 'https://github.com/veyra-watchdog',
+          'X-Title': 'VEYRA Watchdog',
         },
         body: JSON.stringify({
           model: this.options.model,

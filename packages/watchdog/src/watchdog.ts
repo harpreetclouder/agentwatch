@@ -1,4 +1,4 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import {
   PolicyEngine,
   persistDecision,
@@ -6,8 +6,8 @@ import {
   isEnforcementFrozen,
   frozenSessionDecision,
   type SecurityDecision,
-} from '@jev/policy-engine';
-import type { JevStore } from '@jev/storage';
+} from '@veyra/policy-engine';
+import type { VeyraStore } from '@veyra/storage';
 import { SessionHistory } from './history.js';
 import { createDefaultTrajectoryRules } from './trajectories/rules.js';
 import { MockSemanticAnalyzer } from './semantic/mock.js';
@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 
 export type WatchdogOptions = {
-  store?: JevStore;
+  store?: VeyraStore;
   policyEngine?: PolicyEngine;
   rules?: TrajectoryRule[];
   semanticAnalyzer?: SemanticAnalyzer | null;
@@ -40,7 +40,7 @@ export class Watchdog {
   private readonly policyEngine: PolicyEngine;
   private readonly rules: TrajectoryRule[];
   private readonly semantic: SemanticAnalyzer | null;
-  private readonly store: JevStore | undefined;
+  private readonly store: VeyraStore | undefined;
 
   constructor(options: WatchdogOptions = {}) {
     this.store = options.store;
@@ -52,7 +52,7 @@ export class Watchdog {
     } else if (options.semanticAnalyzer !== undefined) {
       this.semantic = options.semanticAnalyzer;
     } else {
-      // Env-driven: mock by default, OpenAI-compatible when JEV_SEMANTIC_API_KEY is set
+      // Env-driven: mock by default, OpenAI-compatible when VEYRA_SEMANTIC_API_KEY is set
       this.semantic = createSemanticAnalyzer() ?? new MockSemanticAnalyzer();
     }
   }

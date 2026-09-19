@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentContext } from '@jev/agent-events';
+import type { AgentEvent, AgentContext } from '@veyra/agent-events';
 
 /**
  * Vendor-neutral adapter contract.

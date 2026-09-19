@@ -1,6 +1,7 @@
-import type { AgentContext, AgentEvent } from '@jev/agent-events';
+import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
 import { tokenizeCommand } from '../paths.js';
+import { sanitizeEvidence } from '../redact.js';
 
 type DangerousMatch = {
   pattern: string;
@@ -10,7 +11,7 @@ type DangerousMatch = {
 
 /**
  * Structured detection of clearly dangerous shell operations.
- * Not an over-broad regex blacklist — token/structure based.
+ * Not a complete shell sandbox — MVP command-category policy.
  */
 export const dangerousShellPolicy: Policy = {
   id: 'DANGEROUS_SHELL',
@@ -27,11 +28,25 @@ export const dangerousShellPolicy: Policy = {
       return null;
     }
 
-    if ((context.allowedCommands ?? []).some((c) => command.includes(c))) {
+    if ((context.allowedCommands ?? []).some((c) => commandMatchesAllow(command, c))) {
       return null;
     }
 
-    const match = classifyDangerousCommand(command);
+    if ((context.deniedCommands ?? []).some((c) => commandMatchesAllow(command, c))) {
+      return {
+        decision: 'BLOCK',
+        severity: 'HIGH',
+        ruleId: 'DANGEROUS_SHELL',
+        reason: 'Command matches an explicitly denied command pattern.',
+        evidence: sanitizeEvidence([
+          `command=${truncate(command, 200)}`,
+          `matchedRule=deniedCommands`,
+        ]),
+        eventId: event.id,
+      };
+    }
+
+    const match = classifyDangerousCommand(command, context);
     if (!match) {
       return null;
     }
@@ -41,15 +56,25 @@ export const dangerousShellPolicy: Policy = {
       severity: match.severity,
       ruleId: 'DANGEROUS_SHELL',
       reason: match.reason,
-      evidence: [
+      evidence: sanitizeEvidence([
         `command=${truncate(command, 200)}`,
         `pattern=${match.pattern}`,
         `task=${context.task?.id ?? 'none'}`,
-      ],
+      ]),
       eventId: event.id,
     };
   },
 };
+
+function commandMatchesAllow(command: string, entry: string): boolean {
+  const tokens = tokenizeCommand(command).map((t) => t.toLowerCase());
+  const needle = entry.toLowerCase().trim();
+  if (!needle) return false;
+  if (tokens[0] === needle || tokens.includes(needle)) {
+    return true;
+  }
+  return command.toLowerCase().startsWith(needle);
+}
 
 function collectCommand(event: AgentEvent): string | null {
   const parts: string[] = [];
@@ -69,9 +94,13 @@ function collectCommand(event: AgentEvent): string | null {
   return joined.length > 0 ? joined : null;
 }
 
-function classifyDangerousCommand(command: string): DangerousMatch | null {
+function classifyDangerousCommand(
+  command: string,
+  context: AgentContext,
+): DangerousMatch | null {
   const lower = command.toLowerCase();
   const tokens = tokenizeCommand(command).map((t) => t.toLowerCase());
+  const bin = tokens[0] ?? '';
 
   if (
     (/curl\b/.test(lower) || /wget\b/.test(lower)) &&
@@ -82,6 +111,36 @@ function classifyDangerousCommand(command: string): DangerousMatch | null {
       reason: 'Piping remote content into a shell is blocked.',
       severity: 'CRITICAL',
     };
+  }
+
+  if (bin === 'curl' || bin === 'wget' || bin === 'nc' || bin === 'ncat') {
+    const dest = tokens.find((t) => t.includes('://') || /\./.test(t)) ?? '';
+    const host =
+      dest.replace(/^https?:\/\//, '').split('/')[0]?.split(':')[0]?.toLowerCase() ?? '';
+    const denied = context.deniedNetworks ?? [];
+    if (
+      host.startsWith('evil.') ||
+      host.includes('exfil') ||
+      denied.some((d) => host === d.toLowerCase() || host.endsWith(`.${d.toLowerCase()}`))
+    ) {
+      return {
+        pattern: 'network_exfil_shell',
+        reason: 'Shell network tool targeting a denied or exfiltration host.',
+        severity: 'CRITICAL',
+      };
+    }
+    const allowed = context.allowedNetworks ?? [];
+    if (
+      allowed.length > 0 &&
+      host &&
+      !allowed.some((a) => host === a.toLowerCase() || host.endsWith(`.${a.toLowerCase()}`))
+    ) {
+      return {
+        pattern: 'network_unauthorized',
+        reason: 'Shell network tool targeting a host outside allowedNetworks.',
+        severity: 'HIGH',
+      };
+    }
   }
 
   if (tokens[0] === 'rm' && (tokens.includes('-rf') || tokens.includes('-fr'))) {
@@ -121,23 +180,40 @@ function classifyDangerousCommand(command: string): DangerousMatch | null {
     };
   }
 
-  if (
-    tokens[0] === 'chmod' &&
-    tokens.includes('777') &&
-    (tokens.includes('-r') || tokens.includes('-R')) &&
-    tokens.some((t) => t === '/' || t === '/*')
-  ) {
-    return {
-      pattern: 'chmod_777_root',
-      reason: 'World-writable chmod on system roots is blocked.',
-      severity: 'HIGH',
-    };
-  }
-
   if (tokens[0] === 'sudo' || tokens[0] === 'su' || tokens[0] === 'doas') {
     return {
       pattern: 'privilege_binary',
       reason: 'Privilege-escalation shell binaries are blocked without authority.',
+      severity: 'HIGH',
+    };
+  }
+
+  if (
+    (bin === 'bash' || bin === 'sh' || bin === 'zsh') &&
+    tokens.includes('-c') &&
+    (lower.includes('rm -rf') || lower.includes('curl ') || lower.includes('wget '))
+  ) {
+    return {
+      pattern: 'shell_eval_dangerous',
+      reason: 'Shell -c with dangerous nested payload is blocked.',
+      severity: 'HIGH',
+    };
+  }
+
+  if ((bin === 'python' || bin === 'python3' || bin === 'node') && tokens.includes('-c')) {
+    if (lower.includes('socket') || lower.includes('urllib') || lower.includes('http')) {
+      return {
+        pattern: 'interpreter_network',
+        reason: 'Inline interpreter network access without authority is blocked.',
+        severity: 'HIGH',
+      };
+    }
+  }
+
+  if (bin === 'ssh' || bin === 'scp') {
+    return {
+      pattern: 'remote_shell_copy',
+      reason: 'SSH/SCP without explicit authority is blocked.',
       severity: 'HIGH',
     };
   }

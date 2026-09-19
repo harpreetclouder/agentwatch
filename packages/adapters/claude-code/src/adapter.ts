@@ -1,5 +1,5 @@
-import type { AgentEvent } from '@jev/agent-events';
-import type { AdapterOptions, AgentAdapter, AgentSession } from '@jev/adapter-core';
+import type { AgentEvent } from '@veyra/agent-events';
+import type { AdapterOptions, AgentAdapter, AgentSession } from '@veyra/adapter-core';
 import { detectClaudeCode } from './detect.js';
 import { normalizeClaudeCodeEvent } from './normalize.js';
 

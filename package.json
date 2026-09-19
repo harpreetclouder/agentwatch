@@ -1,9 +1,9 @@
 {
-  "name": "jev",
+  "name": "veyra-monorepo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "JEV Watchdog — security control plane for autonomous AI agents",
+  "description": "VEYRA Watchdog — security control plane for autonomous AI agents",
   "packageManager": "pnpm@10.16.1",
   "engines": {
     "node": ">=20"
@@ -16,8 +16,9 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "jev": "pnpm --filter @jev/cli start",
-    "dashboard": "pnpm --filter @jev/dashboard start"
+    "veyra": "pnpm --filter veyra start",
+    "dashboard": "pnpm --filter @veyra/dashboard start",
+    "pack:veyra": "pnpm --filter veyra build && pnpm --filter veyra exec npm pack --pack-destination ../.."
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
