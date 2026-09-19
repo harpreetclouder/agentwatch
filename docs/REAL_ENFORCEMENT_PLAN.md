@@ -1,40 +1,34 @@
 # Real local enforcement — status
 
-User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.
+User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.  
 Not an OS sandbox. A jailbreak must never become authority.
 
-## Stage 1–7 complete
+**Milestone:** [PRESENTATION READY](MILESTONE_GATES.md) (Stages 0–10 gates YES)
 
-- Path auth, quarantine, redaction, state machine, Watchdog
-- Claude PreToolUse bridge + LIVE console + Stage 6 trajectory
-- Stage 7: `veyra attack --simulation` vs `--runtime`
+## Stages 0–10 complete
 
-## Stage 8 complete
+| Stage | Gate |
+|-------|------|
+| 0 | Build clean |
+| 1 | Security tests pass |
+| 2 | Real hook works |
+| 3 | Real `.env` blocked |
+| 4 | Real-time event stream |
+| 5 | LIVE dashboard |
+| 6 | Trajectory + quarantine |
+| 7 | Runtime attack lab |
+| 8 | One-command demo |
+| 9 | Regression safe |
+| 10 | Presentation ready |
 
-Product command: **`veyra demo`**
+Full flowchart: [`MILESTONE_GATES.md`](MILESTONE_GATES.md).
 
-1. Verify install → isolated workspace → synthetic `.env` / vulnerable auth / malicious README  
-2. Start enforcement + verify Claude hook  
-3. Live Claude Code when available; otherwise **REAL RUNTIME UNAVAILABLE** + deterministic hook test  
-4. Never labels simulation/hook-fallback as runtime  
-5. Operator output: SECRET_ACCESS / BLOCK / NOT EXECUTED / 1/1 contained + disclaimer
+## Remaining (later — do not start until requested)
 
-Advanced: `--mode=hook|runtime|stage6` still available.
-
-## Stage 9 complete
-
-Enforcement regression safety:
-
-1. **Level 1 unit** — PolicyEngine allow/block/quarantine/path/scope/redaction + regressions
-2. **Level 2 hook** — real `veyra hook` PreToolUse allow + `.env` deny + malformed fail-closed
-3. **Level 3 runtime** — optional; skip unless `VEYRA_RUNTIME_TESTS=1` and `claude` CLI available
-4. **CI** — `.github/workflows/ci.yml`: install → typecheck → lint → build → test; no Claude credentials; does not set `VEYRA_RUNTIME_TESTS`
-
-## Remaining gaps (later — do not start until requested)
-
-1. Passport / Visa issuance  
-2. Cloud / multi-tenant control plane
+1. Passport / Visa issuance (runtime)  
+2. External enforcement daemon / sandbox / network gateway  
+3. Cloud / multi-tenant control plane  
 
 ## Out of scope until asked
 
-Cloud infra, enterprise analytics, billing, user management, new policy packs
+Cloud infra, enterprise analytics, billing, user management, new policy packs  
