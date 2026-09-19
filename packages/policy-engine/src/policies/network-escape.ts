@@ -122,11 +122,16 @@ function isDeniedHost(host: string, denied: readonly string[]): boolean {
 
 function isExfilHeuristic(host: string, raw: string): boolean {
   const lower = `${host} ${raw}`.toLowerCase();
+  // Stage 6 local attack sink (synthetic only — never external infra).
+  const localCollector =
+    (host === '127.0.0.1' || host === 'localhost' || host === '::1') &&
+    (/:8787\b/.test(lower) || lower.includes('/collect'));
   return (
     host.startsWith('evil.') ||
     host.includes('exfil') ||
     host.startsWith('collector.') ||
-    lower.includes('/collect')
+    lower.includes('/collect') ||
+    localCollector
   );
 }
 

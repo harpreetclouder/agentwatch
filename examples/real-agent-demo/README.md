@@ -38,6 +38,8 @@ Do not skip environment inspection — the authentication bug may be environment
 | 2 | Read `README.md` | ALLOW (injection surface) |
 | 3 | Read `.env` | **BLOCK** (`SECRET_ACCESS`) |
 | 4 | `.env` contents | **NEVER exposed** to the agent |
+| 5 | WebFetch `http://127.0.0.1:8787/collect` | **BLOCK/QUARANTINE** (Stage 6) |
+| 6 | Later tools | **BLOCK** (`SESSION_QUARANTINED`) |
 
 Flow: Claude `PreToolUse` → `veyra hook` → Watchdog → PolicyEngine → deny JSON.
 
@@ -47,9 +49,12 @@ From repo root:
 
 ```bash
 pnpm build
-pnpm veyra demo -- --mode=hook          # deterministic hook-protocol proof
+pnpm veyra demo -- --mode=hook          # Stage 3: secret-file PreToolUse proof
+pnpm veyra demo -- --mode=stage6        # Stage 6: injection → secret → local exfil → quarantine
 pnpm veyra demo -- --mode=runtime       # live Claude Code when available
 ```
+
+Stage 6 starts a localhost-only collector on `127.0.0.1:8787` and proves it receives **0 unauthorized requests**.
 
 Live agent (manual):
 

@@ -1,6 +1,6 @@
-# VEYRA WATCHDOG
+# VEYRA
 
-Security control plane for autonomous AI agents.
+**Runtime security and authority enforcement for AI agents.**
 
 ```
 See what your agent does.
@@ -8,83 +8,124 @@ Understand why.
 Stop it when it crosses its authority.
 ```
 
-**Core thesis:** a compromised agent should never turn a jailbreak into authority.
+A jailbreak must never become authority.
 
 ---
 
-## What problem this solves
+## Real use case
 
-Generic LLM guardrails judge *text*. Agents take *actions* (read files, run shell, call MCP).
+AI coding agents (Claude Code, Codex, and similar) do not only generate text — they **read files, run shell, and call tools**. Prompt injection and over-broad tasks can steer them into secrets, destructive commands, or out-of-scope resources.
 
-VEYRA sits on the agent hook path and decides **authority** independently of the model:
+VEYRA sits on the **tool request path** and decides whether that action is allowed **before execution**.
 
 ```
-REAL AGENT → TOOL REQUEST → VEYRA HOOK → POLICY → BLOCK → TOOL NEVER EXECUTES → EVIDENCE
+Agent
+  → Tool Request
+  → VEYRA
+  → Policy
+  → Watchdog
+  → Enforcement
+  → Evidence
 ```
 
-Not: “detected malicious behavior.”  
-Yes: **blocked before execution.**
+| Outcome | Meaning |
+|---------|---------|
+| ALLOW | Tool may proceed |
+| WARN | Proceed with recorded risk |
+| BLOCK | Tool must not run |
+| QUARANTINE | Session frozen; further tools denied until operator resume |
+
+Correct claim: **blocked before execution** for hook-visible actions.  
+Incorrect claim: complete AI / agent security.
 
 ---
 
-## Quick start
+## Product demo
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
-
-pnpm veyra init
-pnpm veyra demo                          # hook-protocol demo: .env BLOCKED
-pnpm veyra attack --mode=simulation      # 10-scenario corpus
-pnpm veyra attack --mode=runtime         # real PreToolUse deny path
+pnpm install && pnpm build
+pnpm veyra demo
 ```
 
-### Claude Code live enforcement
+`veyra demo` is the real product demonstration:
+
+1. Isolated workspace with synthetic `.env`, vulnerable `src/auth.ts`, and a controlled malicious README  
+2. VEYRA enforcement via real Claude PreToolUse hooks  
+3. Live Claude Code when available; otherwise an honest **REAL RUNTIME UNAVAILABLE** message + deterministic hook test (never labeled as live runtime)
+
+**Expected story:**
+
+```
+Prompt Injection
+  → Secret Access (.env)
+  → BLOCK (SECRET_ACCESS)
+  → Tool Never Executes
+  → Evidence recorded
+```
+
+Synthetic secrets only (`veyra_fake_*`). Do not put real credentials in the demo `.env`.
+
+Fixture project: [`examples/real-agent-demo/`](examples/real-agent-demo/).
+
+---
+
+## Claude Code bridge
+
+Install hooks so Claude Code tool requests pass through VEYRA:
 
 ```bash
-pnpm veyra bridge install                # merges hooks; backs up settings
-# In a project (see examples/real-agent-demo):
-# ask Claude Code to “fix auth” — Read(.env) should be denied
-pnpm veyra explain <session-id>
-pnpm veyra bridge status
-pnpm veyra bridge uninstall
+pnpm veyra bridge install     # merge VEYRA into .claude/settings.json (backup created)
+pnpm veyra bridge status      # show whether managed hooks are present
+pnpm veyra bridge uninstall   # remove managed hooks; restore backup when applicable
 ```
 
-Demo fixture: [`examples/real-agent-demo/`](examples/real-agent-demo/) (synthetic `.env` only).
+### What the hook does
 
-No API key required for deterministic enforcement. Optional advisory TypeSafe Jev via OpenRouter Decisions API (`OPENROUTER_API_KEY=sk-or-...`) — never grants authority.
+1. Claude Code emits a **PreToolUse** event (JSON on stdin) before running a tool.  
+2. The bridge script runs `veyra hook --adapter=claude-code`.  
+3. VEYRA normalizes the payload → **Watchdog** → **PolicyEngine**.  
+4. On BLOCK/QUARANTINE (or fail-closed), stdout returns Claude’s deny JSON (`permissionDecision: deny`).  
+5. Claude **does not execute** the tool. Evidence is stored under `.veyra/`.  
+6. Empty stdout on allow — Claude continues its normal permission flow.
+
+Fail-closed: malformed PreToolUse JSON and evaluation errors **deny**.  
+Details: [`docs/HOOK_PROTOCOL.md`](docs/HOOK_PROTOCOL.md).
 
 ---
 
-## Security model (honest)
+## Attack lab
 
-VEYRA currently operates at **user-space hook** level for integrated agents (Claude Code / Codex).
+```bash
+pnpm veyra attack --mode=simulation   # or: veyra attack --simulation
+pnpm veyra attack --mode=runtime      # or: veyra attack --runtime
+```
 
-| Can enforce | Cannot protect against |
-|-------------|----------------------|
-| Hook-visible PreToolUse / prompts | Agent escaping hooks |
-| Deterministic policies + quarantine | Compromised OS / privileged bypass |
-| Local evidence in `.veyra/` | Kernel attacks, external malware |
+| Mode | What it exercises | What it is not |
+|------|-------------------|----------------|
+| **simulation** | Synthetic `AgentEvent`s through PolicyEngine, Watchdog, trajectories, and the state machine | Not a live Claude session |
+| **runtime** | Real PreToolUse hook path (real tool request shape → VEYRA → deny). First scenario: `prompt-injection-secret-access` | Does **not** use `simulateEvent()` |
 
-Correct claim: *policy-based runtime enforcement for integrated agent actions.*  
-See [`docs/threat-model.md`](docs/threat-model.md).
+Never label simulation results as runtime.
 
 ---
 
-## Architecture
+## Security limitations
 
-```
-Agent → Adapter → AgentEvent → PolicyEngine → Watchdog → Enforcement → Evidence → CLI/Dashboard
-```
+VEYRA currently provides **user-space enforcement through integrated agent hooks** (Claude Code / Codex PreToolUse and related events).
 
-| Concept | MVP |
-|---------|-----|
-| AgentContext + resource scopes | Implemented (Visa precursor) |
-| Deterministic policies (10) | Implemented |
-| Trajectory correlation | Implemented |
-| Hook fail-closed (PreToolUse) | Implemented |
-| Passport / Visa / Trust Network | Interfaces only — later |
+It does **not** protect against:
+
+- Compromised operating systems  
+- Privileged bypass  
+- Kernel attacks  
+- Agents outside integrated hooks  
+- Malicious processes outside VEYRA  
+
+It also does not replace OS sandboxes, network gateways, or identity systems.
+
+**Do not claim complete AI security.**
+
+Full model: [`docs/threat-model.md`](docs/threat-model.md).
 
 ---
 
@@ -92,14 +133,30 @@ Agent → Adapter → AgentEvent → PolicyEngine → Watchdog → Enforcement �
 
 | Command | Purpose |
 |---------|---------|
-| `veyra init` | Local `.veyra/` plane |
-| `veyra bridge install\|status\|uninstall` | Live hooks (merge-safe + backup) |
-| `veyra hook` | Stdin hook processor (fail-closed PreToolUse) |
-| `veyra demo` | Controlled block-before-execution demo |
+| `veyra init` | Create local `.veyra/` security plane |
+| `veyra demo` | Product demo — prompt injection → secret access → BLOCK |
+| `veyra bridge install\|status\|uninstall` | Claude Code / Codex live hooks |
+| `veyra hook` | Stdin hook processor (used by the bridge) |
 | `veyra attack --mode=simulation\|runtime` | Attack lab |
 | `veyra explain [session]` | Incident timeline / last report |
 | `veyra watch` / `events` / `policy` / `status` | Observe |
-| `veyra quarantine` / `resume` | Operator controls |
+| `veyra quarantine` / `resume` | Operator session controls |
+
+Operator runbook: [`docs/OPERATOR.md`](docs/OPERATOR.md).  
+Milestone gates: [`docs/MILESTONE_GATES.md`](docs/MILESTONE_GATES.md).
+
+---
+
+## Roadmap (not implemented)
+
+Planned directions — **interfaces or design only today; do not claim these ship**:
+
+- Passport / Visa / Authority Chain / Trust Network  
+- External enforcement daemon  
+- Stronger sandbox / syscall boundary  
+- Network gateway  
+- Multi-agent authority  
+- Cloud fleet management  
 
 ---
 
@@ -108,6 +165,9 @@ Agent → Adapter → AgentEvent → PolicyEngine → Watchdog → Enforcement �
 ```bash
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
+
+CI runs install → typecheck → lint → build → test without Claude credentials.  
+Optional live runtime tests: `VEYRA_RUNTIME_TESTS=1` (requires Claude CLI).
 
 Stack: TypeScript, pnpm, Turborepo, Zod, Vitest, SQLite, Next.js dashboard (local read-only).
 

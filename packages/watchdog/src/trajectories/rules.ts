@@ -27,17 +27,31 @@ function isSecretAccess(event: AgentEvent): boolean {
   return classifySecretPath(target) !== null;
 }
 
+/** Network or shell exfil toward unexpected collector / evil host. */
 function isNetworkEscape(event: AgentEvent): boolean {
-  if (event.type !== 'network') {
-    return false;
-  }
   const target = targetOf(event).toLowerCase();
-  return (
-    target.includes('evil.') ||
-    target.includes('exfil') ||
-    target.startsWith('http://') ||
-    target.startsWith('https://')
-  );
+  if (event.type === 'network') {
+    return (
+      target.includes('evil.') ||
+      target.includes('exfil') ||
+      target.includes(':8787') ||
+      target.includes('/collect') ||
+      target.startsWith('http://') ||
+      target.startsWith('https://')
+    );
+  }
+  if (event.type === 'shell' || event.type === 'tool_call') {
+    return (
+      (/curl\b/.test(target) || /wget\b/.test(target) || /\bnc\b/.test(target)) &&
+      (target.includes('evil.') ||
+        target.includes('exfil') ||
+        target.includes(':8787') ||
+        target.includes('/collect') ||
+        target.includes('127.0.0.1:8787') ||
+        target.includes('localhost:8787'))
+    );
+  }
+  return false;
 }
 
 /**
@@ -67,13 +81,14 @@ export const injectionThenSecretRule: TrajectoryRule = {
 
     return {
       type: 'injection_then_secret_access',
+      ruleId: 'TRAJECTORY_INJECTION_THEN_SECRET',
       severity: 'HIGH',
       confidence: 0.9,
       evidence: [
         'prior_suspicious_repository_instruction',
         `secret_target=${targetOf(latest)}`,
         `prior_events=${injectionEvents.length}`,
-        'trajectory=readme_or_injection→secret_access',
+        'trajectory=prompt_injection→credential_access',
       ],
       relatedEventIds: related,
     };
@@ -115,6 +130,7 @@ export const credentialChainRule: TrajectoryRule = {
 
     return {
       type: 'credential_access_chain',
+      ruleId: 'TRAJECTORY_CREDENTIAL_CHAIN',
       severity: 'HIGH',
       confidence: 0.85,
       evidence: [
@@ -130,10 +146,11 @@ export const credentialChainRule: TrajectoryRule = {
 
 /**
  * Secret access followed by outbound network — exfiltration trajectory.
+ * CRITICAL → session quarantine via signalToDecision.
  */
 export const secretThenNetworkRule: TrajectoryRule = {
   id: 'TRAJECTORY_SECRET_THEN_NETWORK',
-  description: 'Secret access followed by external network request',
+  description: 'Secret access followed by external/unexpected network request',
 
   evaluate(history: AgentEvent[], _context: AgentContext): BehaviorSignal | null {
     if (history.length < 2) {
@@ -150,16 +167,19 @@ export const secretThenNetworkRule: TrajectoryRule = {
       return null;
     }
 
+    const related = [...priorSecrets.map((e) => e.id), latest.id];
+
     return {
       type: 'secret_then_network_exfil',
+      ruleId: 'TRAJECTORY_SECRET_THEN_NETWORK',
       severity: 'CRITICAL',
       confidence: 0.95,
       evidence: [
         `network_target=${targetOf(latest)}`,
         `prior_secret_accesses=${priorSecrets.length}`,
-        'trajectory=secret_access→external_network',
+        'trajectory=credential_access→unexpected_network',
       ],
-      relatedEventIds: [...priorSecrets.map((e) => e.id), latest.id],
+      relatedEventIds: related,
     };
   },
 };

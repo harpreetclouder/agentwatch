@@ -86,9 +86,18 @@ export class Watchdog {
   /**
    * Observe one event: persist (optional), evaluate policies + trajectories.
    * Frozen sessions (QUARANTINED / REVOKED) hard-deny further tool-like actions.
+   *
+   * Across process boundaries (e.g. each `veyra hook` invocation), in-memory
+   * history is empty — hydrate from the store so multi-step trajectories work.
    */
   async observe(event: AgentEvent, context: AgentContext): Promise<WatchdogObservation> {
     const history = this.getHistory(context.sessionId);
+    if (this.store && history.size() === 0) {
+      const prior = await this.store.events.findBySession(context.sessionId);
+      for (const priorEvent of prior) {
+        history.append(priorEvent);
+      }
+    }
     history.append(event);
 
     if (this.store) {

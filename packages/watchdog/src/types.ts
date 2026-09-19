@@ -8,6 +8,8 @@ import type { Severity } from '@veyra/shared';
  */
 export interface BehaviorSignal {
   type: string;
+  /** Stable rule id for persistence / evidence (e.g. TRAJECTORY_SECRET_THEN_NETWORK). */
+  ruleId?: string;
   severity: Severity;
   confidence?: number;
   evidence: string[];

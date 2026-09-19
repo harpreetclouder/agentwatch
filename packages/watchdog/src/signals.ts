@@ -4,6 +4,9 @@ import type { BehaviorSignal } from './types.js';
 /**
  * Convert a trajectory signal into a SecurityDecision when severity warrants enforcement.
  * Does not replace policy engine — supplements it for multi-event patterns.
+ *
+ * Evidence is structured for operators:
+ *   ruleId / matchedEvents / severity / reason
  */
 export function signalToDecision(
   signal: BehaviorSignal,
@@ -20,12 +23,21 @@ export function signalToDecision(
         ? 'BLOCK'
         : 'WARN';
 
+  const ruleId =
+    signal.ruleId ?? `WATCHDOG_${signal.type.toUpperCase()}`;
+
   return {
     decision,
     severity: signal.severity,
-    ruleId: `WATCHDOG_${signal.type.toUpperCase()}`,
+    ruleId,
     reason: `Trajectory signal: ${signal.type}. Correlated behavior exceeds single-event risk.`,
-    evidence: signal.evidence,
+    evidence: [
+      `ruleId=${ruleId}`,
+      `matchedEvents=${signal.relatedEventIds.join(',')}`,
+      `severity=${signal.severity}`,
+      `reason=trajectory_${signal.type}`,
+      ...signal.evidence,
+    ],
     eventId,
   };
 }

@@ -20,6 +20,15 @@ describe('attack corpus', () => {
     expect(listAttacks()).toHaveLength(10);
   });
 
+  it('marks prompt-injection-secret-access as runtime-capable', () => {
+    const runtime = listAttacks('runtime');
+    expect(runtime).toHaveLength(1);
+    expect(runtime[0]?.id).toBe('prompt-injection-secret-access');
+    expect(runtime[0]?.expectedPolicy).toBe('SECRET_ACCESS');
+    expect(runtime[0]?.expectedDecision).toBe('BLOCK');
+    expect(runtime[0]?.runtimeSupported).toBe(true);
+  });
+
   it('contains all corpus attacks when run together', async () => {
     const store = SqliteVeyraStore.openMemory();
     const { summary, results } = await runAttacks({ store });
@@ -27,6 +36,7 @@ describe('attack corpus', () => {
     expect(results).toHaveLength(10);
     expect(summary.totalCount).toBe(10);
     expect(summary.containedCount).toBe(10);
+    expect(summary.mode).toBe('simulation');
     for (const result of results) {
       expect(result.contained, result.attackId).toBe(true);
     }
@@ -40,12 +50,13 @@ describe('prompt injection → credential access', () => {
     const store = SqliteVeyraStore.openMemory();
     const { summary, report, results } = await runAttacks({
       store,
-      attackIds: ['01-prompt-injection-secrets'],
+      attackIds: ['prompt-injection-secret-access'],
     });
 
     expect(results).toHaveLength(1);
     expect(results[0]?.contained).toBe(true);
     expect(results[0]?.passed).toBe(true);
+    expect(results[0]?.attackId).toBe('prompt-injection-secret-access');
     expect(results[0]?.decisions.some((d) => d.ruleId === 'SECRET_ACCESS')).toBe(true);
     expect(
       results[0]?.signals.some((s) => s.type === 'injection_then_secret_access'),
@@ -53,6 +64,7 @@ describe('prompt injection → credential access', () => {
 
     expect(summary.containedCount).toBe(1);
     expect(summary.totalCount).toBe(1);
+    expect(summary.mode).toBe('simulation');
     expect(report.violations.length).toBeGreaterThan(0);
     expect(report.violations.some((v) => v.rule === 'SECRET_ACCESS')).toBe(true);
     expect(report.violations.some((v) => v.decision === 'BLOCK')).toBe(true);
@@ -65,11 +77,22 @@ describe('prompt injection → credential access', () => {
     store.close();
   });
 
+  it('accepts legacy attack id alias', async () => {
+    const store = SqliteVeyraStore.openMemory();
+    const { results } = await runAttacks({
+      store,
+      attackIds: ['01-prompt-injection-secrets'],
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.attackId).toBe('prompt-injection-secret-access');
+    store.close();
+  });
+
   it('records a timeline with blocked secret access', async () => {
     const store = SqliteVeyraStore.openMemory();
     const { report } = await runAttacks({
       store,
-      attackIds: ['01-prompt-injection-secrets'],
+      attackIds: ['prompt-injection-secret-access'],
     });
 
     const blocked = report.timeline.filter((t) => t.mark === 'block');

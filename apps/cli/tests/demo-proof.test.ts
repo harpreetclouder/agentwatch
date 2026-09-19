@@ -9,7 +9,9 @@ import {
   isClaudeAuthFailure,
   materializeExampleIntoTemp,
   runHookProtocolProof,
+  runStage6TrajectoryProof,
 } from '../src/harness/demo-proof.js';
+import { COLLECTOR_URL, startLocalCollector } from '../src/harness/local-collector.js';
 
 const temps: string[] = [];
 const cli = resolveCliEntry();
@@ -74,5 +76,51 @@ describe('Stage 3 demo proof (hook protocol)', () => {
     expect(report.claim).toBe(
       'VEYRA blocked an unauthorized secret-file access request before execution.',
     );
+  });
+});
+
+describe('Stage 6 trajectory proof', () => {
+  it('blocks secret then local exfil, quarantines, collector stays at 0', async () => {
+    expect(existsSync(cli)).toBe(true);
+    const root = resolveProjectRoot(process.cwd());
+    const example = join(root, 'examples', 'real-agent-demo');
+    const dest = mkdtempSync(join(tmpdir(), 'veyra-stage6-'));
+    temps.push(dest);
+    materializeExampleIntoTemp(example, dest);
+
+    const report = await runStage6TrajectoryProof({ workspace: dest, cliEntry: cli });
+
+    expect(report.mode).toBe('STAGE6_TRAJECTORY');
+    expect(report.claimReady).toBe(true);
+    expect(report.trajectory?.attackObserved).toBe(true);
+    expect(report.trajectory?.secretBlocked).toBe(true);
+    expect(report.trajectory?.networkBlocked).toBe(true);
+    expect(report.trajectory?.quarantineTriggered).toBe(true);
+    expect(report.trajectory?.subsequentBlocked).toBe(true);
+    expect(report.trajectory?.ruleId).toBe('TRAJECTORY_SECRET_THEN_NETWORK');
+    expect(report.trajectory?.matchedEvents.length).toBeGreaterThanOrEqual(2);
+    expect(report.collector?.unauthorizedRequests).toBe(0);
+    expect(report.collector?.url).toBe(COLLECTOR_URL);
+    expect(report.session.securityState).toBe('QUARANTINED');
+    expect(report.envUnchanged).toBe(true);
+    expect(report.secretNeverInHookOutput).toBe(true);
+  });
+
+  it('local collector records metadata and discards body bytes', async () => {
+    const collector = await startLocalCollector({ port: 0 });
+    try {
+      const res = await fetch(collector.url, {
+        method: 'POST',
+        body: 'DEMO_API_KEY=veyra_fake_key',
+      });
+      expect(res.status).toBe(204);
+      expect(collector.unauthorizedRequests).toBe(1);
+      expect(collector.records[0]?.hadBody).toBe(true);
+      expect(collector.records[0]?.contentLength).toBeGreaterThan(0);
+      // Ensure we did not retain payload text on the record object.
+      expect(JSON.stringify(collector.records[0])).not.toContain('veyra_fake_key');
+    } finally {
+      await collector.close();
+    }
   });
 });

@@ -60,6 +60,19 @@ describe('NETWORK_ESCAPE', () => {
     expect(networkEscapePolicy.evaluate(event, ctx())?.severity).toBe('CRITICAL');
   });
 
+  it('quarantines Stage 6 local collector sink on 127.0.0.1:8787', () => {
+    const event = createAgentEvent({
+      id: createId('evt'),
+      sessionId: 's1',
+      agentId: 'a1',
+      type: 'network',
+      action: { name: 'web_fetch', target: 'http://127.0.0.1:8787/collect' },
+    });
+    const d = networkEscapePolicy.evaluate(event, ctx());
+    expect(d?.decision).toBe('QUARANTINE');
+    expect(d?.ruleId).toBe('NETWORK_ESCAPE');
+  });
+
   it('blocks hosts outside allowedNetworks', () => {
     const event = createAgentEvent({
       id: createId('evt'),

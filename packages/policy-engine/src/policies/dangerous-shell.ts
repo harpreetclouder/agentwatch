@@ -118,9 +118,14 @@ function classifyDangerousCommand(
     const host =
       dest.replace(/^https?:\/\//, '').split('/')[0]?.split(':')[0]?.toLowerCase() ?? '';
     const denied = context.deniedNetworks ?? [];
+    const localCollector =
+      /:8787\b/.test(lower) ||
+      lower.includes('/collect') ||
+      ((host === '127.0.0.1' || host === 'localhost') && lower.includes('8787'));
     if (
       host.startsWith('evil.') ||
       host.includes('exfil') ||
+      localCollector ||
       denied.some((d) => host === d.toLowerCase() || host.endsWith(`.${d.toLowerCase()}`))
     ) {
       return {

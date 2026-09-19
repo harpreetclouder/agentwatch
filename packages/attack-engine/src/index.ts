@@ -1,9 +1,13 @@
 export type {
   Attack,
   AttackCategory,
+  AttackCheck,
   AttackContext,
+  AttackMode,
   AttackResult,
   AttackRunSummary,
+  DecisionOutcome,
+  RuntimeAttackResult,
   SecurityReport,
 } from './types.js';
 
@@ -22,4 +26,5 @@ export {
   listAttacks,
   getAttack,
   promptInjectionSecretsAttack,
+  PROMPT_INJECTION_SECRET_ALIASES,
 } from './attacks/index.js';

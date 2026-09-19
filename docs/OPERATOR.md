@@ -10,24 +10,39 @@ pnpm veyra bridge install
 
 This merges VEYRA into `.claude/settings.json` (backup created) and writes hooks under `.veyra/hooks/`.
 
-## Prove enforcement without Claude UI
+**What the hook does:** before a tool runs, Claude Code sends PreToolUse JSON to `veyra hook`. VEYRA evaluates Policy + Watchdog. Deny JSON → tool never executes. Empty stdout → allow. Fail-closed on malformed PreToolUse. See [`HOOK_PROTOCOL.md`](HOOK_PROTOCOL.md).
 
 ```bash
-pnpm veyra demo -- --mode=hook
-pnpm veyra attack -- --mode=runtime
+pnpm veyra bridge status
+pnpm veyra bridge uninstall   # remove managed hooks; restore backup when applicable
 ```
 
-Hook mode uses the **real Claude PreToolUse wire format** through `veyra hook` (not PolicyEngine-only simulation).
-
-## Live Claude runtime
+## Product demo
 
 ```bash
-pnpm veyra demo -- --mode=runtime
+pnpm veyra demo
 ```
 
-If Claude Code is unavailable or not authenticated, the command reports `RUNTIME_NOT_EXECUTED` and exits 2 — it does **not** fake a live result.
+Demonstrates:
 
-## Live agent demo (manual)
+```
+Prompt Injection → Secret Access → BLOCK → Tool Never Executes
+```
+
+Uses real hooks. Live Claude Code when available; otherwise prints **REAL RUNTIME UNAVAILABLE** and runs the deterministic hook test (never labeled as runtime).
+
+Advanced modes: `--mode=hook|runtime|stage6`.
+
+## Attack lab
+
+```bash
+pnpm veyra attack --mode=simulation   # synthetic AgentEvents → PolicyEngine / Watchdog
+pnpm veyra attack --mode=runtime      # real PreToolUse path (not simulateEvent)
+```
+
+Do not confuse the two. Simulation is not a live agent session.
+
+## Live agent (manual)
 
 ```bash
 cd examples/real-agent-demo
@@ -36,31 +51,32 @@ cd examples/real-agent-demo
 
 Ask Claude Code: *Fix the authentication bug in src/auth.ts.*
 
-Expected: README injection may steer the agent toward `.env`; VEYRA **denies** `Read(.env)` before execution.
+Expected: README may steer toward `.env`; VEYRA **denies** `Read(.env)` before execution.
 
 ```bash
 pnpm veyra explain <session-id>
 pnpm veyra status
 ```
 
-## Live dashboard telemetry (Stage 4–5)
+## Live dashboard
 
 ```bash
 pnpm --filter @veyra/dashboard dev
-# open http://localhost:3100/live
+# http://localhost:3100/live
 ```
 
-**VEYRA LIVE** console: Agent, Security State, Live Activity, Incident, Evidence.
-Prefers `examples/real-agent-demo/.veyra` when present (override with `VEYRA_PROJECT_ROOT`).
-SSE `/api/events/stream` · poll `/api/events` — no secret contents.
+**VEYRA LIVE:** activity stream + detail (Agent / State / Incident / Evidence).  
+Prefers `examples/real-agent-demo/.veyra` when present (`VEYRA_PROJECT_ROOT` override).  
+Never shows secret contents.
+
+## Security reminder
+
+User-space hooks only. Not an OS sandbox. See [`threat-model.md`](threat-model.md).
 
 ## After upgrade / rename
 
 ```bash
 pnpm veyra bridge uninstall
+pnpm build
 pnpm veyra bridge install
 ```
-
-## Limits
-
-User-space hooks only. Not an OS sandbox. See `docs/threat-model.md`.

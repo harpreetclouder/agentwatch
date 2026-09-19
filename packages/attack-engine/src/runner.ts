@@ -3,7 +3,7 @@ import type { AgentContext } from '@veyra/agent-events';
 import type { VeyraStore } from '@veyra/storage';
 import { Watchdog } from '@veyra/watchdog';
 import { createAttackLab } from './lab.js';
-import { listAttacks } from './attacks/index.js';
+import { getAttack, listAttacks } from './attacks/index.js';
 import type { AttackContext, AttackRunSummary, AttackResult } from './types.js';
 import { buildSecurityReport } from './report.js';
 import type { SecurityReport } from './types.js';
@@ -86,8 +86,12 @@ export async function runAttacks(options: RunAttacksOptions): Promise<RunAttacks
     };
 
     const selected = options.attackIds
-      ? listAttacks().filter((a) => options.attackIds!.includes(a.id))
-      : listAttacks();
+      ? listAttacks('simulation').filter((a) =>
+          options.attackIds!.some(
+            (id) => a.id === id || getAttack(id)?.id === a.id,
+          ),
+        )
+      : listAttacks('simulation');
 
     const results: AttackResult[] = [];
     for (const attack of selected) {
@@ -126,6 +130,7 @@ export async function runAttacks(options: RunAttacksOptions): Promise<RunAttacks
     const summary: AttackRunSummary = {
       sessionId,
       agentName,
+      mode: 'simulation',
       results,
       containedCount,
       totalCount: results.length,

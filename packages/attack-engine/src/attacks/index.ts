@@ -1,17 +1,31 @@
-import type { Attack } from '../types.js';
-import { promptInjectionSecretsAttack } from './prompt-injection-secrets.js';
+import type { Attack, AttackMode } from '../types.js';
+import {
+  promptInjectionSecretsAttack,
+  PROMPT_INJECTION_SECRET_ALIASES,
+} from './prompt-injection-secrets.js';
 import { corpusAttacks } from './corpus.js';
 
-/** Full Stage 10 attack corpus (10 scenarios). */
-export function listAttacks(): Attack[] {
-  return [promptInjectionSecretsAttack, ...corpusAttacks];
+/** Full attack corpus (simulation + runtime-capable definitions). */
+export function listAttacks(mode?: AttackMode): Attack[] {
+  const all = [promptInjectionSecretsAttack, ...corpusAttacks];
+  if (!mode) return all;
+  if (mode === 'simulation') {
+    return all.filter((a) => a.simulationSupported);
+  }
+  return all.filter((a) => a.runtimeSupported);
 }
 
 export function getAttack(id: string): Attack | undefined {
-  return listAttacks().find((attack) => attack.id === id);
+  const all = listAttacks();
+  const direct = all.find((attack) => attack.id === id);
+  if (direct) return direct;
+  if ((PROMPT_INJECTION_SECRET_ALIASES as readonly string[]).includes(id)) {
+    return promptInjectionSecretsAttack;
+  }
+  return undefined;
 }
 
-export { promptInjectionSecretsAttack };
+export { promptInjectionSecretsAttack, PROMPT_INJECTION_SECRET_ALIASES };
 export {
   dangerousShellAttack,
   networkExfiltrationAttack,
