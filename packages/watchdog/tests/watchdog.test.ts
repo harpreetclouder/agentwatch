@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAgentEvent, type AgentContext } from '@veyra/agent-events';
 import { createId } from '@veyra/shared';
+import { PolicyEngine } from '@veyra/policy-engine';
 import { SqliteVeyraStore } from '@veyra/storage';
 import {
   Watchdog,
@@ -8,6 +9,7 @@ import {
   credentialChainRule,
   secretThenNetworkRule,
 } from '../src/index.js';
+import type { SemanticAnalyzer } from '../src/types.js';
 
 function ctx(overrides: Partial<AgentContext> = {}): AgentContext {
   return {
@@ -246,5 +248,39 @@ describe('Watchdog', () => {
     expect(context.securityState).toBe('QUARANTINED');
 
     store.close();
+  });
+
+  it('never lets semantic analysis independently grant authority or block', async () => {
+    const semantic: SemanticAnalyzer = {
+      async analyze() {
+        return {
+          eventId: 'e1',
+          risk: 'CRITICAL',
+          confidence: 0.99,
+          category: 'injection',
+          explanation: 'Semantic wants quarantine — must not be sole authority',
+        };
+      },
+    };
+
+    const watchdog = new Watchdog({
+      semanticAnalyzer: semantic,
+      policyEngine: new PolicyEngine({ policies: [] }),
+      rules: [],
+    });
+    const context = ctx();
+    const obs = await watchdog.observe(
+      evt({
+        id: createId('evt'),
+        type: 'file_read',
+        action: { name: 'read_file', target: 'README.md' },
+      }),
+      context,
+    );
+
+    expect(obs.semantic?.risk).toBe('CRITICAL');
+    expect(obs.blocked).toBe(false);
+    expect(obs.primaryPolicy).toBeNull();
+    expect(context.securityState).toBe('NORMAL');
   });
 });

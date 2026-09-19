@@ -65,9 +65,10 @@ export function printCommandHelp(command: string): boolean {
       console.log('  runtime     Exercise real hook protocol against a temp workspace');
       break;
     case 'demo':
-      console.log('Usage: veyra demo');
+      console.log('Usage: veyra demo [--mode=hook|runtime] [--workspace=<path>]');
       console.log('');
-      console.log('Controlled real-hook demo: allow benign reads, block .env before execution.');
+      console.log('  hook     Deterministic PreToolUse wire-format proof (default)');
+      console.log('  runtime  Live Claude Code when available; never fakes success');
       break;
     case 'explain':
       console.log('Usage: veyra explain [<session-id>]');

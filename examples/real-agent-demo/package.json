@@ -1,0 +1,11 @@
+{
+  "name": "veyra-real-agent-demo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Controlled VEYRA demo: prompt injection → .env block (synthetic secrets only)",
+  "type": "module",
+  "scripts": {
+    "demo:hook": "pnpm --dir ../.. veyra demo -- --mode=hook --workspace=examples/real-agent-demo",
+    "demo:runtime": "pnpm --dir ../.. veyra demo -- --mode=runtime --workspace=examples/real-agent-demo"
+  }
+}

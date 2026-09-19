@@ -7,6 +7,7 @@ coverage
 .env
 .env.*
 !.env.example
+!examples/real-agent-demo/.env
 .jev/
 .veyra/
 *.tsbuildinfo

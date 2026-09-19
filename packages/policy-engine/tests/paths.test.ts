@@ -9,7 +9,9 @@ import {
   isPathInside,
   matchesResourceScope,
   resolvePath,
+  resolveSafePath,
 } from '../src/paths.js';
+import { classifySecurityPlanePath } from '../src/classify/security-plane.js';
 
 describe('path authorization', () => {
   it('does not treat similar directory names as inside', () => {
@@ -18,15 +20,28 @@ describe('path authorization', () => {
     );
     expect(isPathInside('/workspace/project/.env', '/workspace/project')).toBe(true);
     expect(isPathInside('/repo/sub/.env', '/repo')).toBe(true);
+    expect(isPathInside('/repo/sub/file', '/repo')).toBe(true);
+    expect(isPathInside('/repo-other/file', '/repo')).toBe(false);
     expect(isPathInside('/repo-other/.env', '/repo')).toBe(false);
   });
 
   it('rejects ../ traversal escapes', () => {
-    const outside = resolvePath('/repo/../outside.txt', '/repo');
+    const outside = resolvePath('/repo/../secret', '/repo');
     expect(isPathInside(outside, '/repo')).toBe(false);
+    expect(resolveSafePath('/repo/../secret', '/repo', { boundary: '/repo' })).toBeNull();
 
-    const escaped = resolvePath('/repo/sub/../../outside.txt', '/repo');
+    const escaped = resolvePath('/repo/sub/../../secret', '/repo');
     expect(isPathInside(escaped, '/repo')).toBe(false);
+    expect(resolveSafePath('/repo/sub/../../secret', '/repo', { boundary: '/repo' })).toBeNull();
+  });
+
+  it('resolveSafePath normalizes relative paths against cwd', () => {
+    expect(resolveSafePath('.env', '/repo')).toBe(canonicalizePath('.env', '/repo'));
+    expect(resolveSafePath('sub/file', '/repo')).toBe(canonicalizePath('sub/file', '/repo'));
+    expect(resolveSafePath('../secret', '/repo/sub', { boundary: '/repo' })).toBe(
+      canonicalizePath('secret', '/repo'),
+    );
+    expect(resolveSafePath('../../secret', '/repo/sub', { boundary: '/repo' })).toBeNull();
   });
 
   it('isPathAllowed distinguishes file vs directory scope', () => {
@@ -75,5 +90,41 @@ describe('path authorization', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it('denies symlink that escapes repository boundary', () => {
+    const root = mkdtempSync(join(tmpdir(), 'veyra-symlink-escape-'));
+    const outside = mkdtempSync(join(tmpdir(), 'veyra-outside-'));
+    try {
+      writeFileSync(join(outside, 'secret.env'), 'LEAK=1\n');
+      mkdirSync(join(root, 'repo'), { recursive: true });
+      const link = join(root, 'repo', 'escape.env');
+      try {
+        symlinkSync(join(outside, 'secret.env'), link);
+      } catch {
+        return;
+      }
+      const repo = join(root, 'repo');
+      // Following the link leaves the repo — must not be "allowed" as inside repo
+      expect(isPathAllowed(link, [repo], repo)).toBe(false);
+      expect(resolveSafePath(link, repo, { boundary: repo, followSymlinks: true })).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('security plane path classification', () => {
+  it('matches real .veyra plane paths', () => {
+    expect(classifySecurityPlanePath('.veyra/config.json', '/repo')?.kind).toBeTruthy();
+    expect(classifySecurityPlanePath('.veyra/policies/x.json', '/repo')?.kind).toBeTruthy();
+    expect(classifySecurityPlanePath('/repo/.veyra/veyra.sqlite', '/repo')?.kind).toBeTruthy();
+  });
+
+  it('does not match substring lookalikes (.veyra-backup, foo.veyra)', () => {
+    expect(classifySecurityPlanePath('.veyra-backup/config.json', '/repo')).toBeNull();
+    expect(classifySecurityPlanePath('docs/foo.veyra.md', '/repo')).toBeNull();
+    expect(classifySecurityPlanePath('notjev/config.json', '/repo')).toBeNull();
   });
 });

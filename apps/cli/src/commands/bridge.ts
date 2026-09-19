@@ -69,6 +69,9 @@ export async function cmdBridge(args: string[]): Promise<number> {
   if (action === 'uninstall') {
     const result = uninstallBridge();
     console.log('Live bridge uninstalled (VEYRA-managed hooks removed).');
+    if (result.restored) {
+      console.log('  Restored pre-install Claude/Codex configuration from backup.');
+    }
     console.log('');
     console.log(`  Project: ${result.projectRoot}`);
     console.log('');

@@ -18,25 +18,28 @@ export const ClaudeToolInputSchema = z
   })
   .passthrough();
 
-/** PreToolUse / PostToolUse hook payload (Claude Code hooks). */
-export const ClaudeHookEventSchema = z.object({
-  hook_event_name: z.enum([
-    'PreToolUse',
-    'PostToolUse',
-    'Notification',
-    'Stop',
-    'SubagentStop',
-    'PreCompact',
-    'UserPromptSubmit',
-  ]),
-  tool_name: z.string().optional(),
-  tool_input: ClaudeToolInputSchema.optional(),
-  tool_response: z.unknown().optional(),
-  session_id: z.string().optional(),
-  cwd: z.string().optional(),
-  prompt: z.string().optional(),
-  message: z.string().optional(),
-});
+/** PreToolUse / PostToolUse / UserPromptSubmit hook payload (Claude Code hooks). */
+export const ClaudeHookEventSchema = z
+  .object({
+    hook_event_name: z.enum([
+      'PreToolUse',
+      'PostToolUse',
+      'Notification',
+      'Stop',
+      'SubagentStop',
+      'PreCompact',
+      'UserPromptSubmit',
+    ]),
+    tool_name: z.string().optional(),
+    tool_input: ClaudeToolInputSchema.optional(),
+    tool_response: z.unknown().optional(),
+    tool_use_id: z.string().optional(),
+    session_id: z.string().optional(),
+    cwd: z.string().optional(),
+    prompt: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
 
 /** Simplified tool_use record (transcript / bridge). */
 export const ClaudeToolUseSchema = z.object({

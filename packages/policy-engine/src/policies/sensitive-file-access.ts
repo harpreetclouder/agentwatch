@@ -1,6 +1,6 @@
 import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
-import { canonicalizePath, extractPathCandidates, isPathDenied } from '../paths.js';
+import { canonicalizePath, extractPathCandidates, isPathDenied, resolveSafePath } from '../paths.js';
 import { sanitizeEvidence } from '../redact.js';
 
 /**
@@ -27,7 +27,7 @@ export const sensitiveFileAccessPolicy: Policy = {
       if (!isPathDenied(candidate, denied, cwd)) {
         continue;
       }
-      const resolved = canonicalizePath(candidate, cwd);
+      const resolved = resolveSafePath(candidate, cwd) ?? canonicalizePath(candidate, cwd);
       return {
         decision: 'BLOCK',
         severity: 'HIGH',

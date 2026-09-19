@@ -13,15 +13,25 @@ This merges VEYRA into `.claude/settings.json` (backup created) and writes hooks
 ## Prove enforcement without Claude UI
 
 ```bash
-pnpm veyra demo
+pnpm veyra demo -- --mode=hook
 pnpm veyra attack -- --mode=runtime
 ```
 
-## Live agent demo
+Hook mode uses the **real Claude PreToolUse wire format** through `veyra hook` (not PolicyEngine-only simulation).
+
+## Live Claude runtime
+
+```bash
+pnpm veyra demo -- --mode=runtime
+```
+
+If Claude Code is unavailable or not authenticated, the command reports `RUNTIME_NOT_EXECUTED` and exits 2 — it does **not** fake a live result.
+
+## Live agent demo (manual)
 
 ```bash
 cd examples/real-agent-demo
-# from repo root: pnpm veyra init && pnpm veyra bridge install
+# from repo root: pnpm veyra init && pnpm veyra bridge install -- --adapter=claude-code
 ```
 
 Ask Claude Code: *Fix the authentication bug in src/auth.ts.*

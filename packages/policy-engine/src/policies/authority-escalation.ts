@@ -1,6 +1,22 @@
 import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
-import { extractPathCandidates, tokenizeCommand } from '../paths.js';
+import {
+  basenameOf,
+  canonicalizePath,
+  extractPathCandidates,
+  pathSegments,
+  tokenizeCommand,
+} from '../paths.js';
+import { sanitizeEvidence } from '../redact.js';
+
+const PRIVILEGE_PATH_BASENAMES = new Set([
+  'sudoers',
+  'passwd',
+  'shadow',
+  'authorized_keys',
+]);
+
+const PRIVILEGE_PATH_SEGMENTS = new Set(['sudoers.d']);
 
 /**
  * Detect attempts to obtain permissions beyond current authority.
@@ -46,27 +62,33 @@ export const authorityEscalationPolicy: Policy = {
 
       if (command) {
         const tokens = tokenizeCommand(command).map((t) => t.toLowerCase());
+        const lower = command.toLowerCase();
         if (
           tokens[0] === 'sudo' ||
           tokens[0] === 'su' ||
           tokens[0] === 'doas' ||
           tokens.includes('visudo') ||
-          command.toLowerCase().includes('chmod u+s') ||
-          command.toLowerCase().includes('chown root')
+          (tokens[0] === 'chmod' && tokens.includes('u+s')) ||
+          (tokens[0] === 'chown' && tokens.includes('root'))
         ) {
+          return quarantine(event, `command=${command.slice(0, 120)}`, context);
+        }
+        // Keep chmod/chown compound forms that tokenize oddly
+        if (lower.includes('chmod u+s') || lower.includes('chown root')) {
           return quarantine(event, `command=${command.slice(0, 120)}`, context);
         }
       }
     }
 
-    if (event.type === 'file_write') {
+    if (event.type === 'file_write' || event.type === 'file_read' || event.type === 'shell') {
+      const cwd = event.context?.cwd ?? context.workingDirectory;
       for (const candidate of extractPathCandidates(event)) {
-        const lower = candidate.toLowerCase();
+        const resolved = canonicalizePath(candidate, cwd);
+        const base = basenameOf(resolved).toLowerCase();
+        const segments = pathSegments(resolved).map((s) => s.toLowerCase());
         if (
-          lower.includes('/etc/sudoers') ||
-          lower.endsWith('/etc/passwd') ||
-          lower.includes('/etc/shadow') ||
-          lower.includes('authorized_keys')
+          PRIVILEGE_PATH_BASENAMES.has(base) ||
+          segments.some((s) => PRIVILEGE_PATH_SEGMENTS.has(s))
         ) {
           return quarantine(event, `resource=${candidate}`, context);
         }
@@ -87,11 +109,11 @@ function quarantine(
     severity: 'CRITICAL',
     ruleId: 'AUTHORITY_ESCALATION',
     reason: 'Attempt to escalate authority beyond the current agent Visa/context.',
-    evidence: [
+    evidence: sanitizeEvidence([
       evidenceItem,
       `securityState=${context.securityState}`,
       'authority_must_not_expand_via_agent_action',
-    ],
+    ]),
     eventId: event.id,
   };
 }

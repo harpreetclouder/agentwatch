@@ -3,25 +3,21 @@
 User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.
 Not an OS sandbox. A jailbreak must never become authority.
 
-## Already in place
+## Stage 1 complete (deterministic boundary)
 
-- Claude/Codex adapters + bridge install/uninstall
-- Fail-closed malformed PreToolUse JSON
-- Quarantine freeze gate + operator `quarantine` / `resume`
-- Path helpers use `path.relative` / canonicalize (not naive substring containment)
-- Redaction helpers (`packages/policy-engine/src/redact.ts`)
-- `veyra attack --mode=runtime`, `veyra demo`, `examples/real-agent-demo`
-- Hook protocol tests (deny, fail-closed, quarantine persists, secret not echoed)
-- `docs/threat-model.md`
-- Session-aware `veyra explain <session-id>` (falls back to last attack report)
+- Canonical path auth: `canonicalizePath`, `resolveSafePath`, `isPathInside`, `isPathAllowed`, `isPathDenied`, `matchesResourceScope`
+- FS policies use path utilities (no substring path authorization)
+- Security-plane access → CRITICAL / QUARANTINE
+- Evidence/reason redaction on persist
+- State machine: LOW/MEDIUM→WARNING, HIGH→RESTRICTED, CRITICAL→QUARANTINED; quarantine persists
+- Watchdog order: policy → trajectory → advisory semantic (semantic never grants authority)
 
-## Remaining gaps (next stages — do not start until requested)
+## Remaining gaps (later stages — do not start until requested)
 
-1. Harder path authority edge cases (symlink races, weird tool arg shapes)
-2. Stronger network/shell authority beyond current heuristics
-3. Broader live-agent proof beyond controlled demo/runtime attack
-4. Passport / Visa issuance (types exist; runtime not implemented)
-5. Cloud / multi-tenant control plane
+1. Stronger network/shell heuristics beyond current rules
+2. Passport / Visa issuance (types exist; runtime not implemented)
+3. Cloud / multi-tenant control plane
+4. Live Claude demo requires authenticated `claude` CLI (`veyra demo --mode=runtime`)
 
 ## Out of scope until asked
 

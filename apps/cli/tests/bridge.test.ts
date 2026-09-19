@@ -53,22 +53,20 @@ describe('bridge install', () => {
   it('preserves existing non-VEYRA hooks on install/uninstall', () => {
     const cwd = tempProject();
     mkdirSync(join(cwd, '.claude'), { recursive: true });
+    const original = {
+      permissionMode: 'default',
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Bash',
+            hooks: [{ type: 'command', command: 'echo custom-user-hook' }],
+          },
+        ],
+      },
+    };
     writeFileSync(
       join(cwd, '.claude', 'settings.json'),
-      `${JSON.stringify(
-        {
-          hooks: {
-            PreToolUse: [
-              {
-                matcher: 'Bash',
-                hooks: [{ type: 'command', command: 'echo custom-user-hook' }],
-              },
-            ],
-          },
-        },
-        null,
-        2,
-      )}\n`,
+      `${JSON.stringify(original, null, 2)}\n`,
     );
 
     installBridge({ adapters: ['claude-code'], cwd });
@@ -81,17 +79,35 @@ describe('bridge install', () => {
     expect(commands.some((c) => c.includes('custom-user-hook'))).toBe(true);
     expect(commands.some((c) => isVeyraManagedCommand(c))).toBe(true);
 
-    uninstallBridge(cwd);
+    const un = uninstallBridge(cwd);
+    expect(un.restored).toBe(true);
     const after = JSON.parse(
       readFileSync(join(cwd, '.claude', 'settings.json'), 'utf8'),
     ) as {
+      permissionMode?: string;
       hooks?: { PreToolUse?: Array<{ hooks: Array<{ command: string }> }> };
     };
+    expect(after.permissionMode).toBe('default');
     const remaining = (after.hooks?.PreToolUse ?? []).flatMap((g) =>
       g.hooks.map((h) => h.command),
     );
     expect(remaining.some((c) => c.includes('custom-user-hook'))).toBe(true);
     expect(remaining.some((c) => isVeyraManagedCommand(c))).toBe(false);
+  });
+
+  it('install is idempotent (second install does not duplicate VEYRA hooks)', () => {
+    const cwd = tempProject();
+    installBridge({ adapters: ['claude-code'], cwd });
+    installBridge({ adapters: ['claude-code'], cwd });
+    const settings = JSON.parse(
+      readFileSync(join(cwd, '.claude', 'settings.json'), 'utf8'),
+    ) as {
+      hooks: { PreToolUse: Array<{ hooks: Array<{ command: string }> }> };
+    };
+    const managed = settings.hooks.PreToolUse.flatMap((g) => g.hooks).filter((h) =>
+      isVeyraManagedCommand(h.command),
+    );
+    expect(managed).toHaveLength(1);
   });
 
   it('writes a Claude settings patch when .claude is not writable', () => {

@@ -78,9 +78,11 @@ function mapTool(
   options: AdapterOptions,
   timestamp?: string,
   metadata?: Record<string, unknown>,
+  cwdOverride?: string,
 ): AgentEvent {
   const mapping = TOOL_MAP[toolName];
   const safeInput = input ?? {};
+  const cwd = cwdOverride ?? options.workingDirectory;
 
   if (mapping) {
     const target = mapping.target?.(safeInput);
@@ -95,7 +97,7 @@ function mapTool(
         arguments: safeInput,
       },
       context: {
-        cwd: options.workingDirectory,
+        cwd,
         ...(options.taskDescription
           ? { taskDescription: options.taskDescription }
           : {}),
@@ -109,7 +111,7 @@ function mapTool(
     });
   }
 
-  // MCP or unknown tools
+  // MCP or unknown tools — still normalized so PolicyEngine can evaluate
   const isMcp = toolName.includes('__') || toolName.toLowerCase().startsWith('mcp');
   return createAgentEvent({
     id: createId('evt'),
@@ -122,7 +124,7 @@ function mapTool(
       arguments: safeInput,
     },
     context: {
-      cwd: options.workingDirectory,
+      cwd,
       ...(options.taskDescription ? { taskDescription: options.taskDescription } : {}),
     },
     ...(timestamp ? { timestamp } : {}),
@@ -171,9 +173,17 @@ export function normalizeClaudeCodeEvent(
       (data.hook_event_name === 'PreToolUse' || data.hook_event_name === 'PostToolUse') &&
       data.tool_name
     ) {
-      const event = mapTool(data.tool_name, data.tool_input, options, undefined, {
-        hook: data.hook_event_name,
-      });
+      const event = mapTool(
+        data.tool_name,
+        data.tool_input,
+        options,
+        undefined,
+        {
+          hook: data.hook_event_name,
+          ...(data.tool_use_id ? { tool_use_id: data.tool_use_id } : {}),
+        },
+        data.cwd ?? options.workingDirectory,
+      );
 
       if (data.hook_event_name === 'PostToolUse' && data.tool_response !== undefined) {
         return createAgentEvent({

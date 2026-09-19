@@ -47,6 +47,36 @@ export function canonicalizePath(
   }
 }
 
+export type ResolveSafePathOptions = {
+  followSymlinks?: boolean;
+  /** When set, return null if the resolved path escapes this directory tree. */
+  boundary?: string;
+};
+
+/**
+ * Safe path resolution for authorization:
+ * absolute normalization, relative resolve against working directory,
+ * `..` collapse, optional symlink follow, optional boundary containment.
+ * Returns null when a boundary is set and the result escapes it.
+ */
+export function resolveSafePath(
+  candidate: string,
+  workingDirectory: string,
+  options: ResolveSafePathOptions = {},
+): string | null {
+  const canonOpts =
+    options.followSymlinks === undefined ? {} : { followSymlinks: options.followSymlinks };
+  const resolved = canonicalizePath(candidate, workingDirectory, canonOpts);
+  if (!options.boundary) {
+    return resolved;
+  }
+  const boundary = canonicalizePath(options.boundary, workingDirectory, canonOpts);
+  if (!isPathInside(resolved, boundary)) {
+    return null;
+  }
+  return resolved;
+}
+
 export function basenameOf(pathValue: string): string {
   const normalized = normalize(pathValue);
   const parts = normalized.split(/[/\\]/).filter(Boolean);

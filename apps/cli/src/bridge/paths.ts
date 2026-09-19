@@ -52,4 +52,8 @@ export type BridgeManifest = {
   installedAt: string;
   adapters: Array<'claude-code' | 'codex'>;
   cliEntry: string;
+  /** Absolute path to pre-install Claude settings backup (restored on uninstall). */
+  claudeSettingsBackup?: string;
+  /** Absolute path to pre-install Codex hooks backup (restored on uninstall). */
+  codexHooksBackup?: string;
 };

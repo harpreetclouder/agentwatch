@@ -2,23 +2,22 @@
 
 ## Current stage
 
-**Stage 16b — Fix baseline quirks** (complete)
+**Stage 3 — Real agent security demonstration** (runtime detector fix)
 
 ## Done
 
-- Stage 16 audit/brand baseline
-- CLI: `veyra <cmd> --help` / `-h` / `help` prints usage (no accidental watch arm / attack run / bridge error)
-- Documented intentional `hook` empty-stdin no-op in help
-- Refreshed `docs/REAL_ENFORCEMENT_PLAN.md` (done vs remaining)
+- Fixed false `RUNTIME_NOT_EXECUTED` after login: auth detector matched task text (“authentication bug”) / budget noise
+- Secret-in-output check ignores values published in demo README
+- Runtime proof resets `.veyra/veyra.sqlite` so prior QUARANTINE does not poison claim
 
 ## Verify
 
 ```bash
+pnpm --filter veyra build
 pnpm --filter veyra test
-node apps/cli/dist/index.js watch --help
-node apps/cli/dist/index.js bridge --help
+pnpm veyra demo -- --mode=runtime --workspace=examples/real-agent-demo
 ```
 
 ## Next
 
-Wait for explicit go-ahead before next-stage runtime enforcement work.
+Re-run live runtime after Claude login; expect `LIVE_CLAUDE_RUNTIME` (not auth-suspected).

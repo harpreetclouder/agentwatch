@@ -3,6 +3,7 @@ import { createId } from '@veyra/shared';
 import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { VeyraStore, SessionRecord } from '@veyra/storage';
 import type { SecurityDecision } from './types.js';
+import { sanitizeEvidence } from './redact.js';
 
 /** Sessions in these states must not execute agent tool actions. */
 export function isEnforcementFrozen(state: SecurityState): boolean {
@@ -25,13 +26,13 @@ export function frozenSessionDecision(
       context.securityState === 'REVOKED'
         ? 'Session authority is REVOKED. Operator intervention required.'
         : 'Session is QUARANTINED. Operator must run `veyra resume` before actions proceed.',
-    evidence: [
+    evidence: sanitizeEvidence([
       `session=${context.sessionId}`,
       `state=${context.securityState}`,
       `event_type=${event.type}`,
       `action=${event.action.name}`,
       'operator_only_resume',
-    ],
+    ]),
     eventId: event.id,
   };
 }

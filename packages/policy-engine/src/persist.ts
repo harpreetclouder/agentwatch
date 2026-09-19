@@ -3,6 +3,7 @@ import type { VeyraStore, SecurityDecisionRecord, ViolationRecord } from '@veyra
 import type { SecurityDecision } from './types.js';
 import { nextSecurityState } from './enforcement.js';
 import type { AgentContext } from '@veyra/agent-events';
+import { sanitizeEvidence } from './redact.js';
 
 export function toDecisionRecord(
   decision: SecurityDecision,
@@ -17,10 +18,14 @@ export function toDecisionRecord(
     decision: decision.decision,
     severity: decision.severity,
     ruleId: decision.ruleId,
-    reason: decision.reason,
-    evidence: decision.evidence,
+    reason: redactReason(decision.reason),
+    evidence: sanitizeEvidence(decision.evidence),
     createdAt,
   };
+}
+
+function redactReason(reason: string): string {
+  return sanitizeEvidence([reason])[0] ?? reason;
 }
 
 export type PersistDecisionResult = {
@@ -31,6 +36,7 @@ export type PersistDecisionResult = {
 
 /**
  * Persist a security decision and apply progressive enforcement state.
+ * Evidence and reasons are redacted before storage.
  */
 export async function persistDecision(
   store: VeyraStore,
@@ -49,14 +55,14 @@ export async function persistDecision(
       eventId: decision.eventId,
       ruleId: decision.ruleId,
       severity: decision.severity,
-      summary: decision.reason,
+      summary: decisionRecord.reason,
       createdAt: decisionRecord.createdAt,
     };
     await store.violations.append(violation);
   }
 
   const securityState = nextSecurityState(context.securityState, decision);
-  await store.securityState.set(context.sessionId, securityState, decision.reason);
+  await store.securityState.set(context.sessionId, securityState, decisionRecord.reason);
 
   const session = await store.sessions.findById(context.sessionId);
   if (session) {

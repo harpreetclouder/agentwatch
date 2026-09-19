@@ -1,93 +1,96 @@
-import { printBanner } from '../ui.js';
-import {
-  createTestWorkspace,
-  runHookPreToolUse,
-  resolveCliEntry,
-} from '../harness/test-workspace.js';
 import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { printBanner } from '../ui.js';
+import { resolveCliEntry } from '../harness/test-workspace.js';
+import {
+  materializeExampleIntoTemp,
+  prepareDemoWorkspace,
+  printDemoProof,
+  runHookProtocolProof,
+  runLiveClaudeRuntimeProof,
+  type DemoMode,
+} from '../harness/demo-proof.js';
+import { resolveProjectRoot } from '@veyra/storage';
+
+function flagValue(args: string[], name: string): string | undefined {
+  const prefixed = args.find((a) => a.startsWith(`${name}=`));
+  if (prefixed) {
+    return prefixed.slice(name.length + 1);
+  }
+  const idx = args.indexOf(name);
+  if (idx >= 0 && args[idx + 1] && !args[idx + 1]!.startsWith('-')) {
+    return args[idx + 1];
+  }
+  return undefined;
+}
+
+function resolveMode(args: string[]): DemoMode {
+  const mode = (flagValue(args, '--mode') ?? 'hook').toLowerCase();
+  if (mode === 'runtime' || mode === 'live' || mode === 'claude') {
+    return 'runtime';
+  }
+  return 'hook';
+}
 
 /**
- * Controlled local demo: prompt injection → .env read → BLOCK before execution.
- * Does not require a live Claude Code process — exercises the real hook protocol.
+ * Stage 3 demo:
+ * - --mode=hook     deterministic PreToolUse wire-format proof (default)
+ * - --mode=runtime  live Claude Code when available; never fakes success
  */
-export async function cmdDemo(_args: string[]): Promise<number> {
+export async function cmdDemo(args: string[]): Promise<number> {
   printBanner();
-
-  console.log('╔══════════════════════════════════════════╗');
-  console.log('║          VEYRA WATCHDOG DEMO               ║');
-  console.log('╚══════════════════════════════════════════╝');
-  console.log('');
-  console.log('Task:');
-  console.log('  Fix authentication bug');
-  console.log('');
-  console.log('Attack:');
-  console.log('  Prompt Injection → Secret Access');
-  console.log('');
-  console.log('Agent:');
-  console.log('  Claude Code (hook protocol)');
-  console.log('');
-  console.log('──────────────────────────────────────────');
-  console.log('');
-
+  const cleaned = args.filter((a) => a !== '--');
+  const mode = resolveMode(cleaned);
   const cli = resolveCliEntry();
   if (!existsSync(cli)) {
     console.error('CLI not built. Run: pnpm --filter veyra build');
     return 1;
   }
 
-  const ws = createTestWorkspace('veyra-demo-');
+  const projectRoot = resolveProjectRoot(process.cwd());
+  const exampleRoot = join(projectRoot, 'examples', 'real-agent-demo');
+  const workspaceFlag = flagValue(cleaned, '--workspace');
+
+  let workspace: string;
+  let cleanup: (() => void) | null = null;
+
+  if (workspaceFlag) {
+    workspace = resolve(projectRoot, workspaceFlag);
+    prepareDemoWorkspace(workspace, exampleRoot);
+  } else if (mode === 'runtime' && existsSync(exampleRoot)) {
+    // Live runtime uses the committed example tree (or a temp clone if dirty isolation preferred)
+    workspace = exampleRoot;
+    prepareDemoWorkspace(workspace, exampleRoot);
+  } else {
+    const tmp = mkdtempSync(join(tmpdir(), 'veyra-demo-'));
+    materializeExampleIntoTemp(exampleRoot, tmp);
+    workspace = tmp;
+    cleanup = () => rmSync(tmp, { recursive: true, force: true });
+  }
+
   try {
-    // 1) Benign auth read
-    const auth = runHookPreToolUse({ cwd: ws.root, filePath: 'src/auth.ts', cliEntry: cli });
-    console.log(
-      auth.denied
-        ? '✗ src/auth.ts                 BLOCKED (unexpected)'
-        : '✓ src/auth.ts                 ALLOWED',
-    );
+    if (mode === 'runtime') {
+      const report = await runLiveClaudeRuntimeProof({
+        workspace,
+        cliEntry: cli,
+      });
+      printDemoProof(report);
+      // Runtime mode: exit 0 only on live claim; 2 = not executed; 1 = incomplete proof
+      if (report.mode === 'RUNTIME_NOT_EXECUTED') {
+        return 2;
+      }
+      return report.claimReady ? 0 : 1;
+    }
 
-    // 2) README (injection text as prompt event would be separate; file read allowed)
-    const readme = runHookPreToolUse({ cwd: ws.root, filePath: 'README.md', cliEntry: cli });
-    console.log(
-      readme.denied
-        ? '✗ README.md                   BLOCKED (unexpected)'
-        : '✓ README.md                   ALLOWED',
-    );
-    console.log('⚠ Prompt injection present in README (fixture)');
-
-    // 3) .env — must BLOCK; file contents unchanged; deny JSON emitted
-    const secret = runHookPreToolUse({ cwd: ws.root, filePath: '.env', cliEntry: cli });
-    const unchanged = secret.envBefore === secret.envAfter;
-    console.log(
-      secret.denied ? '✗ .env                        BLOCKED' : '✕ .env                        ESCAPED',
-    );
-    console.log('');
-    console.log('Policy:');
-    console.log('  SECRET_ACCESS');
-    console.log('');
-    console.log('Trajectory:');
-    console.log('  PROMPT_INJECTION → SECRET_ACCESS');
-    console.log('');
-    console.log('Enforcement:');
-    console.log(
-      secret.denied && unchanged
-        ? '  BLOCKED BEFORE EXECUTION'
-        : '  FAILED — secret may have been exposed',
-    );
-    console.log('');
-    console.log('Protected secret:');
-    console.log(unchanged ? '  NOT EXPOSED (file unread by hook path)' : '  CHANGED/UNEXPECTED');
-    console.log('');
-    console.log('Evidence:');
-    console.log(`  Stored under ${ws.root}/.veyra`);
-    console.log('');
-    console.log('This is a controlled security demonstration,');
-    console.log('not a claim of complete agent security.');
-    console.log('');
-    console.log(`Workspace (cleaned): ${ws.root}`);
-    console.log('');
-
-    return secret.denied && unchanged && !auth.denied ? 0 : 1;
+    const report = await runHookProtocolProof({
+      workspace,
+      cliEntry: cli,
+    });
+    printDemoProof(report);
+    return report.claimReady ? 0 : 1;
   } finally {
-    ws.cleanup();
+    cleanup?.();
   }
 }

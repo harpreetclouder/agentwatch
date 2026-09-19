@@ -1,10 +1,10 @@
 import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
 import {
-  canonicalizePath,
   extractPathCandidates,
   isPathAllowed,
   isPathDenied,
+  resolveSafePath,
 } from '../paths.js';
 import { classifySecretPath } from '../classify/secrets.js';
 import { sanitizeEvidence } from '../redact.js';
@@ -33,7 +33,7 @@ export const secretAccessPolicy: Policy = {
     // Explicit deny scopes / deniedPaths win first
     for (const candidate of candidates) {
       if (isPathDenied(candidate, context.deniedPaths ?? [], cwd)) {
-        const resolved = canonicalizePath(candidate, cwd);
+        const resolved = resolveSafePath(candidate, cwd) ?? candidate;
         return {
           decision: 'BLOCK',
           severity: 'HIGH',
@@ -53,7 +53,7 @@ export const secretAccessPolicy: Policy = {
     }
 
     for (const candidate of candidates) {
-      const resolved = canonicalizePath(candidate, cwd);
+      const resolved = resolveSafePath(candidate, cwd) ?? candidate;
       const match = classifySecretPath(resolved) ?? classifySecretPath(candidate);
       if (!match) {
         continue;

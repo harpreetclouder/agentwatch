@@ -1,6 +1,7 @@
 import type { AgentContext, AgentEvent } from '@veyra/agent-events';
 import type { Policy, SecurityDecision } from '../types.js';
 import {
+  basenameOf,
   canonicalizePath,
   extractPathCandidates,
   isPathAllowed,
@@ -24,11 +25,12 @@ const CREDENTIAL_BASENAMES = new Set([
   'id_ecdsa',
   'id_dsa',
   'service-account.json',
-  'serviceAccount.json',
+  'serviceaccount.json',
 ]);
 
 /**
  * Detect access to common credential store locations.
+ * Classification uses path segments / exact basenames — not substring path auth.
  */
 export const credentialAccessPolicy: Policy = {
   id: 'CREDENTIAL_ACCESS',
@@ -44,22 +46,12 @@ export const credentialAccessPolicy: Policy = {
     for (const candidate of extractPathCandidates(event)) {
       const resolved = canonicalizePath(candidate, cwd);
       const segments = pathSegments(resolved).map((s) => s.toLowerCase());
-      const base = (segments[segments.length - 1] ?? '').toLowerCase();
+      const base = basenameOf(resolved).toLowerCase();
 
       const inCredDir = segments.some((s) => CREDENTIAL_DIR_MARKERS.has(s));
       const credFile = CREDENTIAL_BASENAMES.has(base);
 
       if (!inCredDir && !credFile) {
-        continue;
-      }
-
-      const looksLikeStore =
-        inCredDir ||
-        base === 'credentials' ||
-        base.endsWith('service-account.json') ||
-        base === 'serviceaccount.json';
-
-      if (!looksLikeStore) {
         continue;
       }
 

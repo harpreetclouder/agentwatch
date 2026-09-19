@@ -238,8 +238,8 @@ describe('enforcement + persist', () => {
         decision: 'BLOCK',
         severity: 'HIGH',
         ruleId: 'SECRET_ACCESS',
-        reason: 'Credential access denied',
-        evidence: ['resource=.env'],
+        reason: 'Credential access denied password=leaked-secret-value',
+        evidence: ['resource=.env', 'token=sk-abcdefghijklmnopqrstuvwxyz'],
         eventId,
       },
       context,
@@ -247,6 +247,8 @@ describe('enforcement + persist', () => {
 
     expect(result.securityState).toBe('RESTRICTED');
     expect(result.violation).not.toBeNull();
+    expect(result.decisionRecord.evidence.join(' ')).not.toMatch(/sk-abc/);
+    expect(result.decisionRecord.reason).not.toContain('leaked-secret-value');
     expect(await store.decisions.findBySession(sessionId)).toHaveLength(1);
     expect(await store.violations.findBySession(sessionId)).toHaveLength(1);
     expect((await store.sessions.findById(sessionId))?.securityState).toBe('RESTRICTED');

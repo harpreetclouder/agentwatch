@@ -110,12 +110,23 @@ function installClaudeHooks(
   settingsPath: string,
   scriptPath: string,
   patchPath: string,
-): { mode: 'live' | 'patch'; error?: string } {
+): { mode: 'live' | 'patch'; error?: string; backupPath?: string } {
   const patch = buildClaudeHooksPatch(scriptPath);
   try {
+    let backupPath: string | undefined;
     if (existsSync(settingsPath)) {
-      const backup = `${settingsPath}.veyra-backup-${Date.now()}`;
-      writeFileSync(backup, readFileSync(settingsPath, 'utf8'), 'utf8');
+      // Keep a restore point for uninstall — do not overwrite an existing backup
+      // from an earlier install in this plane.
+      backupPath = `${settingsPath}.veyra-backup`;
+      if (!existsSync(backupPath)) {
+        writeFileSync(backupPath, readFileSync(settingsPath, 'utf8'), 'utf8');
+      }
+      // Also keep a timestamped copy for forensics
+      writeFileSync(
+        `${settingsPath}.veyra-backup-${Date.now()}`,
+        readFileSync(settingsPath, 'utf8'),
+        'utf8',
+      );
     }
     const settings = readJsonFile(settingsPath);
     const hooks = (settings['hooks'] as HooksConfig | undefined) ?? {};
@@ -136,7 +147,7 @@ function installClaudeHooks(
 
     writeJsonFile(settingsPath, { ...settings, hooks: next });
     writeJsonFile(patchPath, { hooks: patch });
-    return { mode: 'live' };
+    return { mode: 'live', ...(backupPath ? { backupPath } : {}) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     writeJsonFile(patchPath, {
@@ -148,7 +159,18 @@ function installClaudeHooks(
   }
 }
 
-function uninstallClaudeHooks(settingsPath: string): void {
+function uninstallClaudeHooks(settingsPath: string, backupPath?: string): void {
+  // Prefer full restore from pre-install backup when available
+  if (backupPath && existsSync(backupPath)) {
+    writeFileSync(settingsPath, readFileSync(backupPath, 'utf8'), 'utf8');
+    return;
+  }
+  const stableBackup = `${settingsPath}.veyra-backup`;
+  if (existsSync(stableBackup)) {
+    writeFileSync(settingsPath, readFileSync(stableBackup, 'utf8'), 'utf8');
+    return;
+  }
+
   if (!existsSync(settingsPath)) {
     return;
   }
@@ -169,7 +191,18 @@ function uninstallClaudeHooks(settingsPath: string): void {
   }
 }
 
-function installCodexHooks(hooksPath: string, scriptPath: string): void {
+function installCodexHooks(
+  hooksPath: string,
+  scriptPath: string,
+): { backupPath?: string } {
+  let backupPath: string | undefined;
+  if (existsSync(hooksPath)) {
+    backupPath = `${hooksPath}.veyra-backup`;
+    if (!existsSync(backupPath)) {
+      writeFileSync(backupPath, readFileSync(hooksPath, 'utf8'), 'utf8');
+    }
+  }
+
   const file = readJsonFile(hooksPath);
   // Codex uses either top-level event keys or nested under "hooks"
   const nested = file['hooks'];
@@ -196,9 +229,20 @@ function installCodexHooks(hooksPath: string, scriptPath: string): void {
     description: 'VEYRA Watchdog live bridge (merge-safe)',
     hooks: next,
   });
+  return backupPath ? { backupPath } : {};
 }
 
-function uninstallCodexHooks(hooksPath: string): void {
+function uninstallCodexHooks(hooksPath: string, backupPath?: string): void {
+  if (backupPath && existsSync(backupPath)) {
+    writeJsonFile(hooksPath, JSON.parse(readFileSync(backupPath, 'utf8')) as unknown);
+    return;
+  }
+  const stableBackup = `${hooksPath}.veyra-backup`;
+  if (existsSync(stableBackup)) {
+    writeJsonFile(hooksPath, JSON.parse(readFileSync(stableBackup, 'utf8')) as unknown);
+    return;
+  }
+
   if (!existsSync(hooksPath)) {
     return;
   }
@@ -249,6 +293,18 @@ export function installBridge(options: InstallOptions): InstallResult {
   const scripts: string[] = [];
   let claudeMode: InstallResult['claudeMode'] = 'skipped';
   let claudeError: string | undefined;
+  let claudeSettingsBackup: string | undefined;
+  let codexHooksBackup: string | undefined;
+
+  // Preserve backup paths from a prior install so uninstall can still restore
+  let prior: BridgeManifest | null = null;
+  if (existsSync(paths.manifestPath)) {
+    try {
+      prior = JSON.parse(readFileSync(paths.manifestPath, 'utf8')) as BridgeManifest;
+    } catch {
+      prior = null;
+    }
+  }
 
   if (options.adapters.includes('claude-code')) {
     writeFileSync(paths.claudeScriptPath, shellBridgeScript(paths.cliEntry, 'claude-code'), {
@@ -263,6 +319,7 @@ export function installBridge(options: InstallOptions): InstallResult {
     );
     claudeMode = claude.mode;
     claudeError = claude.error;
+    claudeSettingsBackup = claude.backupPath ?? prior?.claudeSettingsBackup;
     scripts.push(paths.claudeScriptPath);
   }
 
@@ -272,7 +329,8 @@ export function installBridge(options: InstallOptions): InstallResult {
       mode: 0o755,
     });
     chmodSync(paths.codexScriptPath, 0o755);
-    installCodexHooks(paths.codexHooksPath, paths.codexScriptPath);
+    const codex = installCodexHooks(paths.codexHooksPath, paths.codexScriptPath);
+    codexHooksBackup = codex.backupPath ?? prior?.codexHooksBackup;
     scripts.push(paths.codexScriptPath);
   }
 
@@ -281,6 +339,8 @@ export function installBridge(options: InstallOptions): InstallResult {
     installedAt: new Date().toISOString(),
     adapters: options.adapters,
     cliEntry: paths.cliEntry,
+    ...(claudeSettingsBackup ? { claudeSettingsBackup } : {}),
+    ...(codexHooksBackup ? { codexHooksBackup } : {}),
   };
   writeFileSync(paths.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
@@ -299,16 +359,34 @@ export function installBridge(options: InstallOptions): InstallResult {
 export function uninstallBridge(cwd: string = process.cwd()): {
   projectRoot: string;
   removed: string[];
+  restored: boolean;
 } {
   const paths = resolveBridgeRoot(cwd);
   const removed: string[] = [];
+  let restored = false;
 
-  uninstallClaudeHooks(paths.claudeSettingsPath);
+  let manifest: BridgeManifest | null = null;
+  if (existsSync(paths.manifestPath)) {
+    try {
+      manifest = JSON.parse(readFileSync(paths.manifestPath, 'utf8')) as BridgeManifest;
+    } catch {
+      manifest = null;
+    }
+  }
+
+  const hadClaudeBackup =
+    Boolean(manifest?.claudeSettingsBackup && existsSync(manifest.claudeSettingsBackup)) ||
+    existsSync(`${paths.claudeSettingsPath}.veyra-backup`);
+
+  uninstallClaudeHooks(paths.claudeSettingsPath, manifest?.claudeSettingsBackup);
   if (existsSync(paths.claudeSettingsPath)) {
     removed.push(paths.claudeSettingsPath);
   }
+  if (hadClaudeBackup) {
+    restored = true;
+  }
 
-  uninstallCodexHooks(paths.codexHooksPath);
+  uninstallCodexHooks(paths.codexHooksPath, manifest?.codexHooksBackup);
   if (existsSync(paths.codexHooksPath)) {
     removed.push(paths.codexHooksPath);
   }
@@ -331,7 +409,7 @@ export function uninstallBridge(cwd: string = process.cwd()): {
     removed.push(paths.manifestPath);
   }
 
-  return { projectRoot: paths.projectRoot, removed };
+  return { projectRoot: paths.projectRoot, removed, restored };
 }
 
 export function bridgeStatus(cwd: string = process.cwd()): {

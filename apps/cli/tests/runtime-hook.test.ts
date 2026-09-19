@@ -34,7 +34,7 @@ describe('real hook protocol enforcement', () => {
     expect(result.stdout).toMatch(/SECRET_ACCESS|Credential|secret|authority/i);
     expect(result.envAfter).toBe(result.envBefore);
     // Deny response must not include secret values
-    expect(result.stdout).not.toContain('veyra_fake_secret_123');
+    expect(result.stdout).not.toContain('veyra_fake_key');
   });
 
   it('allows benign source reads silently', () => {
