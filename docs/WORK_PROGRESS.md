@@ -2,22 +2,28 @@
 
 ## Current stage
 
-**Stage 3 — Real agent security demonstration** (runtime detector fix)
+**Stage 5 — VEYRA LIVE Split Board** (interactive redesign)
 
 ## Done
 
-- Fixed false `RUNTIME_NOT_EXECUTED` after login: auth detector matched task text (“authentication bug”) / budget noise
-- Secret-in-output check ignores values published in demo README
-- Runtime proof resets `.veyra/veyra.sqlite` so prior QUARANTINE does not poison claim
+- `/live` Split Board: light stream (selectable) + dark detail (Agent / State / Incident / Evidence)
+- Click row to inspect; auto-focus + pulse on new BLOCK; Esc clears lock
+- Real SQLite SSE/poll only; no secret contents
+- Fix: runtime demo forces real `.env` PreToolUse if agent skips; claim ignores README text false-positives
+- Fix: live feed always polls for catch-up (SSE alone missed events after sqlite wipe)
+- Fix: detail Mono contrast (IDs were invisible light-on-light)
+- Fix: stale `dist/` missed forced `.env` PreToolUse; rebuild required for `pnpm veyra start`
+- Fix: `.env PostToolUse` false positive from shell `find -name ".env*"`
+- Fix: LIVE activity empty while session/RESTRICTED shown — `after=` cursor desynced from React state (HMR/race); cursor now derived from loaded events only
 
 ## Verify
 
 ```bash
-pnpm --filter veyra build
-pnpm --filter veyra test
-pnpm veyra demo -- --mode=runtime --workspace=examples/real-agent-demo
+pnpm --filter @veyra/dashboard test
+pnpm --filter @veyra/dashboard dev
+# http://localhost:3100/live
 ```
 
 ## Next
 
-Re-run live runtime after Claude login; expect `LIVE_CLAUDE_RUNTIME` (not auth-suspected).
+Wait for explicit go-ahead.

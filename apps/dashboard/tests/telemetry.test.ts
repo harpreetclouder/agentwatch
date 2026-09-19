@@ -1,0 +1,176 @@
+import { describe, expect, it } from 'vitest';
+import type { AgentEvent } from '@veyra/agent-events';
+import type { SecurityDecisionRecord } from '@veyra/storage';
+import {
+  listTelemetryAfter,
+  sanitizeActionTarget,
+  toTelemetryEvent,
+  type TelemetryEvent,
+} from '../lib/telemetry';
+import {
+  buildActivityRows,
+  buildIncident,
+  buildIncidentForSelection,
+  buildStatePath,
+  displayAgentName,
+  latestBlockEventId,
+} from '../lib/console-view';
+
+function evt(
+  partial: Partial<TelemetryEvent> & Pick<TelemetryEvent, 'eventId' | 'action'>,
+): TelemetryEvent {
+  return {
+    sessionId: 'sess_1',
+    agentId: 'agent_1',
+    timestamp: '2026-09-19T12:00:00.000Z',
+    type: 'file_read',
+    decision: null,
+    decisionId: null,
+    policy: null,
+    severity: null,
+    reason: null,
+    securityState: 'NORMAL',
+    ...partial,
+  };
+}
+
+describe('telemetry sanitize', () => {
+  it('keeps path basename only for .env targets', () => {
+    expect(sanitizeActionTarget('/Users/me/proj/.env')).toBe('.env');
+    expect(sanitizeActionTarget('src/auth.ts')).toBe('src/auth.ts');
+  });
+
+  it('never includes arguments, results, or secret-looking payloads in DTO', () => {
+    const event = {
+      id: 'evt_1',
+      schemaVersion: '0.1.0',
+      sessionId: 'sess_1',
+      agentId: 'agent_1',
+      timestamp: '2026-09-19T12:00:00.000Z',
+      type: 'tool_call',
+      action: {
+        name: 'Read',
+        target: '/tmp/demo/.env',
+        arguments: { path: '/tmp/demo/.env' },
+      },
+      result: { success: false, error: 'DEMO_API_KEY=veyra_fake_key' },
+      context: { cwd: '/tmp', taskDescription: 'password=supersecret' },
+    } as AgentEvent;
+
+    const decision: SecurityDecisionRecord = {
+      id: 'dec_1',
+      sessionId: 'sess_1',
+      eventId: 'evt_1',
+      decision: 'BLOCK',
+      severity: 'HIGH',
+      ruleId: 'SECRET_ACCESS',
+      reason: 'Blocked .env',
+      evidence: ['DEMO_API_KEY=veyra_fake_key'],
+      createdAt: '2026-09-19T12:00:01.000Z',
+    };
+
+    const dto = toTelemetryEvent({
+      event,
+      decision,
+      securityState: 'RESTRICTED',
+    });
+
+    const serialized = JSON.stringify(dto);
+    expect(serialized).not.toMatch(/veyra_fake_key/);
+    expect(serialized).not.toMatch(/supersecret/);
+    expect(serialized).not.toMatch(/arguments/);
+    expect(serialized).not.toMatch(/evidence/);
+    expect(dto.decisionId).toBe('dec_1');
+    expect(dto.policy).toBe('SECRET_ACCESS');
+    expect(dto.action.target).toBe('.env');
+  });
+
+  it('replays from start when after cursor is unknown (session wipe)', () => {
+    const event = {
+      id: 'evt_new',
+      schemaVersion: '0.1.0',
+      sessionId: 'sess_2',
+      agentId: 'agent_1',
+      timestamp: '2026-09-19T12:00:00.000Z',
+      type: 'file_read',
+      action: { name: 'read_file', target: 'src/auth.ts' },
+    } as AgentEvent;
+
+    const out = listTelemetryAfter([event], [], 'NORMAL', 'evt_from_old_session');
+    expect(out).toHaveLength(1);
+    expect(out[0]?.eventId).toBe('evt_new');
+  });
+});
+
+describe('console view derivation', () => {
+  it('builds activity with injection annotation and blocked .env', () => {
+    const events = [
+      evt({
+        eventId: 'e1',
+        action: { name: 'read_file', target: 'src/auth.ts' },
+        securityState: 'NORMAL',
+      }),
+      evt({
+        eventId: 'e2',
+        action: { name: 'read_file', target: 'README.md' },
+        securityState: 'NORMAL',
+      }),
+      evt({
+        eventId: 'e3',
+        action: { name: 'read_file', target: '.env' },
+        decision: 'BLOCK',
+        decisionId: 'dec_env',
+        policy: 'SECRET_ACCESS',
+        severity: 'HIGH',
+        reason: 'Agent attempted to access a secret-bearing resource outside its authority.',
+        securityState: 'RESTRICTED',
+      }),
+    ];
+
+    const rows = buildActivityRows(events);
+    expect(rows.some((r) => r.label.includes('src/auth.ts') && r.mark === 'ok')).toBe(true);
+    expect(rows.some((r) => r.label === 'Prompt injection detected')).toBe(true);
+    expect(rows.some((r) => r.mark === 'block' && r.resource === '.env')).toBe(true);
+
+    const incident = buildIncident(events);
+    expect(incident?.policy).toBe('SECRET_ACCESS');
+    expect(incident?.severity).toBe('HIGH');
+    expect(incident?.trajectory).toEqual(['PROMPT_INJECTION', 'SECRET_ACCESS']);
+    expect(incident?.enforcement).toBe('BLOCKED BEFORE EXECUTION');
+    expect(JSON.stringify(incident)).not.toMatch(/veyra_fake/);
+
+    expect(buildStatePath(events, 'RESTRICTED')).toEqual(['NORMAL', 'RESTRICTED']);
+    expect(displayAgentName('claude-bridge', 'claude-code')).toBe('Claude Code');
+  });
+
+  it('focuses selected block for split-board detail', () => {
+    const events = [
+      evt({
+        eventId: 'e1',
+        action: { name: 'read_file', target: 'README.md' },
+      }),
+      evt({
+        eventId: 'e2',
+        action: { name: 'read_file', target: '.env' },
+        decision: 'BLOCK',
+        decisionId: 'dec_a',
+        policy: 'SECRET_ACCESS',
+        severity: 'HIGH',
+        securityState: 'RESTRICTED',
+      }),
+      evt({
+        eventId: 'e3',
+        action: { name: 'edit_file', target: 'src/auth.ts' },
+        decision: 'BLOCK',
+        decisionId: 'dec_b',
+        policy: 'SECRET_ACCESS',
+        severity: 'HIGH',
+        securityState: 'RESTRICTED',
+      }),
+    ];
+    const focused = buildIncidentForSelection(events, 'e2');
+    expect(focused?.eventId).toBe('e2');
+    expect(focused?.decisionId).toBe('dec_a');
+    expect(latestBlockEventId(events)).toBe('e3');
+  });
+});

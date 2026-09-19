@@ -27,6 +27,7 @@ export const metadata: Metadata = {
 };
 
 const nav = [
+  { href: '/live', label: 'VEYRA LIVE' },
   { href: '/', label: 'Overview' },
   { href: '/agents', label: 'Agents' },
   { href: '/security', label: 'Security' },

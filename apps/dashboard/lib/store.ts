@@ -1,17 +1,13 @@
 import {
   resolveVeyraDbPath,
-  resolveProjectRoot,
   SqliteVeyraStore,
   type VeyraStore,
 } from '@veyra/storage';
-
-function projectRoot(): string {
-  return process.env.VEYRA_PROJECT_ROOT ?? resolveProjectRoot(process.cwd());
-}
+import { resolveDashboardProjectRoot } from './plane';
 
 /** Open read-oriented store against the local .veyra plane, or null if uninitialized. */
 export function openDashboardStore(): { store: VeyraStore; root: string } | null {
-  const root = projectRoot();
+  const root = resolveDashboardProjectRoot();
   const dbPath = resolveVeyraDbPath(root);
   if (!dbPath) {
     return null;

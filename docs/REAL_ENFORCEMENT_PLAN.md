@@ -3,22 +3,23 @@
 User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.
 Not an OS sandbox. A jailbreak must never become authority.
 
-## Stage 1 complete (deterministic boundary)
+## Stage 1–4 complete
 
-- Canonical path auth: `canonicalizePath`, `resolveSafePath`, `isPathInside`, `isPathAllowed`, `isPathDenied`, `matchesResourceScope`
-- FS policies use path utilities (no substring path authorization)
-- Security-plane access → CRITICAL / QUARANTINE
-- Evidence/reason redaction on persist
-- State machine: LOW/MEDIUM→WARNING, HIGH→RESTRICTED, CRITICAL→QUARANTINED; quarantine persists
-- Watchdog order: policy → trajectory → advisory semantic (semantic never grants authority)
+- Path auth, quarantine, redaction, state machine, Watchdog order
+- Claude PreToolUse bridge + real-agent demo
+- Real-time telemetry SSE/poll over SQLite
+
+## Stage 5 complete
+
+- VEYRA LIVE Split Board (`/live`): selectable stream + detail pane
+- Auto-updates from live plane; click-to-inspect; never shows secret contents
 
 ## Remaining gaps (later stages — do not start until requested)
 
 1. Stronger network/shell heuristics beyond current rules
 2. Passport / Visa issuance (types exist; runtime not implemented)
 3. Cloud / multi-tenant control plane
-4. Live Claude demo requires authenticated `claude` CLI (`veyra demo --mode=runtime`)
 
 ## Out of scope until asked
 
-Cloud infra, dashboard feature work, new policy packs, Trust Network
+Cloud infra, enterprise analytics, billing, user management, new policy packs

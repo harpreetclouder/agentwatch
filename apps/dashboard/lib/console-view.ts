@@ -1,0 +1,195 @@
+import type { TelemetryEvent } from './telemetry';
+
+export const SECURITY_STATE_LADDER = [
+  'NORMAL',
+  'WARNING',
+  'RESTRICTED',
+  'QUARANTINED',
+  'REVOKED',
+] as const;
+
+export type ActivityRow = {
+  id: string;
+  kind: 'event' | 'annotation';
+  mark: 'ok' | 'warn' | 'block';
+  label: string;
+  timestamp: string;
+  action: string;
+  resource: string;
+  decision: string | null;
+};
+
+export type IncidentView = {
+  policy: string;
+  severity: string;
+  reason: string;
+  trajectory: string[];
+  enforcement: string;
+  eventId: string;
+  decisionId: string | null;
+  sessionId: string;
+  timestamp: string;
+};
+
+function isReadme(evt: TelemetryEvent): boolean {
+  const t = (evt.action.target ?? '').toLowerCase();
+  return t.includes('readme');
+}
+
+function isSecretBlock(evt: TelemetryEvent): boolean {
+  return (
+    (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') &&
+    (evt.policy === 'SECRET_ACCESS' ||
+      (evt.action.target ?? '').includes('.env') ||
+      (evt.action.target ?? '').includes('credentials'))
+  );
+}
+
+function markFor(evt: TelemetryEvent): 'ok' | 'warn' | 'block' {
+  if (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') return 'block';
+  if (evt.decision === 'WARN') return 'warn';
+  return 'ok';
+}
+
+function actionLabel(evt: TelemetryEvent): string {
+  const name = evt.action.name.replace(/_/g, ' ');
+  const resource = evt.action.target ?? '';
+  if (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') {
+    return `${name}${resource ? ` ${resource}` : ''} BLOCKED`;
+  }
+  return `${name}${resource ? ` ${resource}` : ''}`;
+}
+
+/**
+ * Build live activity rows from real telemetry.
+ * Inserts a single "Prompt injection detected" annotation when README
+ * precedes a SECRET_ACCESS block in the same session (trajectory signal).
+ */
+export function buildActivityRows(events: TelemetryEvent[]): ActivityRow[] {
+  const hasInjectionTrajectory =
+    events.some(isReadme) && events.some(isSecretBlock);
+  const rows: ActivityRow[] = [];
+  let injectionShown = false;
+
+  for (const evt of events) {
+    rows.push({
+      id: evt.eventId,
+      kind: 'event',
+      mark: markFor(evt),
+      label: actionLabel(evt),
+      timestamp: evt.timestamp,
+      action: evt.action.name,
+      resource: evt.action.target ?? '—',
+      decision: evt.decision,
+    });
+
+    if (hasInjectionTrajectory && isReadme(evt) && !injectionShown) {
+      injectionShown = true;
+      rows.push({
+        id: `ann-inject-${evt.eventId}`,
+        kind: 'annotation',
+        mark: 'warn',
+        label: 'Prompt injection detected',
+        timestamp: evt.timestamp,
+        action: 'trajectory',
+        resource: evt.action.target ?? 'README',
+        decision: 'WARN',
+      });
+    }
+  }
+
+  return rows;
+}
+
+/** Latest blocking/quarantine decision for the incident panel. */
+export function buildIncident(events: TelemetryEvent[]): IncidentView | null {
+  const blocked = [...events]
+    .reverse()
+    .find((e) => e.decision === 'BLOCK' || e.decision === 'QUARANTINE');
+  if (!blocked || !blocked.policy) return null;
+  return incidentFromEvent(events, blocked);
+}
+
+/** Focus a specific event when user selects a stream row. */
+export function buildIncidentForSelection(
+  events: TelemetryEvent[],
+  selectedId: string | null,
+): IncidentView | null {
+  if (!selectedId) return buildIncident(events);
+
+  const eventId = selectedId.startsWith('ann-inject-')
+    ? selectedId.slice('ann-inject-'.length)
+    : selectedId;
+
+  const selected = events.find((e) => e.eventId === eventId);
+  if (!selected) return buildIncident(events);
+
+  if (selected.decision === 'BLOCK' || selected.decision === 'QUARANTINE') {
+    return incidentFromEvent(events, selected);
+  }
+
+  return null;
+}
+
+function incidentFromEvent(
+  events: TelemetryEvent[],
+  blocked: TelemetryEvent,
+): IncidentView {
+  const trajectory: string[] = [];
+  if (events.some(isReadme) && isSecretBlock(blocked)) {
+    trajectory.push('PROMPT_INJECTION');
+  }
+  trajectory.push(blocked.policy ?? 'UNKNOWN');
+
+  return {
+    policy: blocked.policy ?? 'UNKNOWN',
+    severity: blocked.severity ?? 'HIGH',
+    reason:
+      blocked.reason ??
+      'Agent attempted to access a secret-bearing resource outside its authority.',
+    trajectory,
+    enforcement: 'BLOCKED BEFORE EXECUTION',
+    eventId: blocked.eventId,
+    decisionId: blocked.decisionId,
+    sessionId: blocked.sessionId,
+    timestamp: blocked.timestamp,
+  };
+}
+
+/** Newest block/quarantine event id for auto-focus. */
+export function latestBlockEventId(events: TelemetryEvent[]): string | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e && (e.decision === 'BLOCK' || e.decision === 'QUARANTINE')) {
+      return e.eventId;
+    }
+  }
+  return null;
+}
+
+/** Ordered unique states observed (for transition ladder). */
+export function buildStatePath(
+  events: TelemetryEvent[],
+  current: string | null,
+): string[] {
+  const path: string[] = [];
+  for (const evt of events) {
+    const s = evt.securityState;
+    if (!s) continue;
+    if (path[path.length - 1] !== s) path.push(s);
+  }
+  if (current && path[path.length - 1] !== current) {
+    path.push(current);
+  }
+  if (path.length === 0 && current) return [current];
+  if (path.length === 0) return ['NORMAL'];
+  return path;
+}
+
+export function displayAgentName(name: string, runtime: string): string {
+  const n = (name ?? '').toLowerCase();
+  const r = (runtime ?? '').toLowerCase();
+  if (n.includes('claude') || r.includes('claude')) return 'Claude Code';
+  if ((name ?? '').trim()) return name;
+  return runtime || 'Agent';
+}

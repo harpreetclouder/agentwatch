@@ -43,6 +43,17 @@ pnpm veyra explain <session-id>
 pnpm veyra status
 ```
 
+## Live dashboard telemetry (Stage 4–5)
+
+```bash
+pnpm --filter @veyra/dashboard dev
+# open http://localhost:3100/live
+```
+
+**VEYRA LIVE** console: Agent, Security State, Live Activity, Incident, Evidence.
+Prefers `examples/real-agent-demo/.veyra` when present (override with `VEYRA_PROJECT_ROOT`).
+SSE `/api/events/stream` · poll `/api/events` — no secret contents.
+
 ## After upgrade / rename
 
 ```bash

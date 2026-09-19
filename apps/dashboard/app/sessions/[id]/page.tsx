@@ -8,6 +8,7 @@ import {
   PageHeader,
   StateBadge,
 } from '@/lib/ui';
+import { LiveEventFeed } from '@/components/live-event-feed';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -76,6 +77,10 @@ export default async function SessionTimelinePage({ params }: Props) {
             <div className="stat-label">Blocks</div>
             <div className="stat-value">{stats.blocks}</div>
           </div>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <LiveEventFeed sessionId={session.id} />
         </div>
 
         <section className="panel">

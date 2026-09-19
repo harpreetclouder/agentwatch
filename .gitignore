@@ -12,3 +12,4 @@ coverage
 .veyra/
 *.tsbuildinfo
 .pnpm-store
+.superpowers/
