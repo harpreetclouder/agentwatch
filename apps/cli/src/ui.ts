@@ -19,7 +19,7 @@ export function printHelp(): void {
   console.log('  watch        Observe agent activity');
   console.log('  bridge       Install/uninstall live Claude Code / Codex hooks');
   console.log('  attack       Run attack lab (--mode=simulation|runtime)');
-  console.log('  demo         Controlled real-hook demo (block .env before execution)');
+  console.log('  demo         Product demo (veyra demo) — real-hook security demonstration');
   console.log('  explain      Show session incident timeline or last attack report');
   console.log('  status       Show session / enforcement status');
   console.log('  events       List normalized agent events');
@@ -59,16 +59,25 @@ export function printCommandHelp(command: string): boolean {
       console.log('Install or remove live Claude Code / Codex PreToolUse hooks.');
       break;
     case 'attack':
-      console.log('Usage: veyra attack [--mode=simulation|runtime] [--list] [--id=<attack-id>]');
+      console.log(
+        'Usage: veyra attack [--mode=simulation|runtime] [--simulation|--runtime] [--list] [--id=<attack-id>]',
+      );
       console.log('');
-      console.log('  simulation  Run policy corpus through Watchdog (default)');
-      console.log('  runtime     Exercise real hook protocol against a temp workspace');
+      console.log('  simulation  Synthetic AgentEvent corpus through Watchdog (default)');
+      console.log('  runtime     Real PreToolUse hook path — never uses simulateEvent()');
+      console.log('');
+      console.log('First runtime attack: prompt-injection-secret-access');
       break;
     case 'demo':
-      console.log('Usage: veyra demo [--mode=hook|runtime] [--workspace=<path>]');
+      console.log('Usage: veyra demo [--mode=product|hook|runtime|stage6] [--workspace=<path>]');
       console.log('');
-      console.log('  hook     Deterministic PreToolUse wire-format proof (default)');
-      console.log('  runtime  Live Claude Code when available; never fakes success');
+      console.log('  product  Stage 8 product demo (default) — real hooks; live Claude when available');
+      console.log('  hook     Deterministic PreToolUse wire-format proof');
+      console.log('  runtime  Live Claude Code only; never fakes success');
+      console.log('  stage6   Multi-step trajectory → quarantine + localhost collector');
+      console.log('');
+      console.log('If Claude Code is unavailable, product mode prints REAL RUNTIME UNAVAILABLE');
+      console.log('and runs the deterministic hook test (never labeled as runtime).');
       break;
     case 'explain':
       console.log('Usage: veyra explain [<session-id>]');

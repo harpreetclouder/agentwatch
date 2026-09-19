@@ -10,8 +10,10 @@ import {
   printDemoProof,
   runHookProtocolProof,
   runLiveClaudeRuntimeProof,
+  runStage6TrajectoryProof,
   type DemoMode,
 } from '../harness/demo-proof.js';
+import { printProductDemo, runProductDemo } from '../harness/product-demo.js';
 import { resolveProjectRoot } from '@veyra/storage';
 
 function flagValue(args: string[], name: string): string | undefined {
@@ -26,21 +28,40 @@ function flagValue(args: string[], name: string): string | undefined {
   return undefined;
 }
 
-function resolveMode(args: string[]): DemoMode {
+function hasFlag(args: string[], flag: string): boolean {
+  return args.includes(flag);
+}
+
+/**
+ * Stage 8 default = product demo.
+ * Advanced modes remain available via --mode=.
+ */
+function resolveMode(args: string[]): DemoMode | 'product' {
+  if (!flagValue(args, '--mode') && !hasFlag(args, '--hook') && !hasFlag(args, '--runtime')) {
+    return 'product';
+  }
   const mode = (flagValue(args, '--mode') ?? 'hook').toLowerCase();
-  if (mode === 'runtime' || mode === 'live' || mode === 'claude') {
+  if (mode === 'product' || mode === 'stage8') {
+    return 'product';
+  }
+  if (mode === 'runtime' || mode === 'live' || mode === 'claude' || hasFlag(args, '--runtime')) {
     return 'runtime';
+  }
+  if (mode === 'stage6' || mode === 'trajectory' || mode === 'exfil') {
+    return 'stage6';
   }
   return 'hook';
 }
 
 /**
- * Stage 3 demo:
- * - --mode=hook     deterministic PreToolUse wire-format proof (default)
- * - --mode=runtime  live Claude Code when available; never fakes success
+ * `veyra demo` — Stage 8 product demonstration (default).
+ *
+ * Advanced:
+ * - --mode=hook     deterministic PreToolUse proof
+ * - --mode=runtime  live Claude only (exit 2 if unavailable)
+ * - --mode=stage6   multi-step trajectory + localhost collector
  */
 export async function cmdDemo(args: string[]): Promise<number> {
-  printBanner();
   const cleaned = args.filter((a) => a !== '--');
   const mode = resolveMode(cleaned);
   const cli = resolveCliEntry();
@@ -49,6 +70,21 @@ export async function cmdDemo(args: string[]): Promise<number> {
     return 1;
   }
 
+  // Stage 8 product demo — isolated temp workspace, honest labeling
+  if (mode === 'product') {
+    try {
+      const report = await runProductDemo({ cliEntry: cli });
+      // No generic WATCHDOG banner — product demo has its own header
+      printProductDemo(report);
+      return report.contained ? 0 : 1;
+    } catch (err) {
+      printBanner();
+      console.error(err instanceof Error ? err.message : String(err));
+      return 1;
+    }
+  }
+
+  printBanner();
   const projectRoot = resolveProjectRoot(process.cwd());
   const exampleRoot = join(projectRoot, 'examples', 'real-agent-demo');
   const workspaceFlag = flagValue(cleaned, '--workspace');
@@ -59,8 +95,7 @@ export async function cmdDemo(args: string[]): Promise<number> {
   if (workspaceFlag) {
     workspace = resolve(projectRoot, workspaceFlag);
     prepareDemoWorkspace(workspace, exampleRoot);
-  } else if (mode === 'runtime' && existsSync(exampleRoot)) {
-    // Live runtime uses the committed example tree (or a temp clone if dirty isolation preferred)
+  } else if ((mode === 'runtime' || mode === 'stage6') && existsSync(exampleRoot)) {
     workspace = exampleRoot;
     prepareDemoWorkspace(workspace, exampleRoot);
   } else {
@@ -71,13 +106,21 @@ export async function cmdDemo(args: string[]): Promise<number> {
   }
 
   try {
+    if (mode === 'stage6') {
+      const report = await runStage6TrajectoryProof({
+        workspace,
+        cliEntry: cli,
+      });
+      printDemoProof(report);
+      return report.claimReady ? 0 : 1;
+    }
+
     if (mode === 'runtime') {
       const report = await runLiveClaudeRuntimeProof({
         workspace,
         cliEntry: cli,
       });
       printDemoProof(report);
-      // Runtime mode: exit 0 only on live claim; 2 = not executed; 1 = incomplete proof
       if (report.mode === 'RUNTIME_NOT_EXECUTED') {
         return 2;
       }

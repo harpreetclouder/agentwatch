@@ -93,6 +93,26 @@ describe('trajectory rules', () => {
 
     const signal = secretThenNetworkRule.evaluate(history, ctx());
     expect(signal?.severity).toBe('CRITICAL');
+    expect(signal?.ruleId).toBe('TRAJECTORY_SECRET_THEN_NETWORK');
+  });
+
+  it('detects secret then localhost:8787 collector exfil', () => {
+    const history = [
+      evt({
+        id: 'e1',
+        type: 'file_read',
+        action: { name: 'read_file', target: '.env' },
+      }),
+      evt({
+        id: 'e2',
+        type: 'network',
+        action: { name: 'web_fetch', target: 'http://127.0.0.1:8787/collect' },
+      }),
+    ];
+
+    const signal = secretThenNetworkRule.evaluate(history, ctx());
+    expect(signal?.severity).toBe('CRITICAL');
+    expect(signal?.relatedEventIds).toEqual(['e1', 'e2']);
   });
 
   it('does not flag benign auth.ts read alone', () => {
@@ -180,6 +200,67 @@ describe('Watchdog', () => {
     expect(snap.eventCount).toBe(3);
     expect(snap.signalCount).toBeGreaterThanOrEqual(1);
 
+    store.close();
+  });
+
+  it('hydrates session history from store across Watchdog instances', async () => {
+    const store = SqliteVeyraStore.openMemory();
+    const now = new Date().toISOString();
+    const agentId = createId('agent');
+    const sessionId = createId('sess');
+
+    await store.agents.upsert({
+      id: agentId,
+      name: 'Test',
+      runtime: 'test',
+      model: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await store.sessions.create({
+      id: sessionId,
+      agentId,
+      taskId: 'task_auth',
+      taskDescription: 'Fix authentication bug',
+      workingDirectory: '/repo',
+      environment: 'local',
+      status: 'ACTIVE',
+      securityState: 'NORMAL',
+      startedAt: now,
+      endedAt: null,
+    });
+
+    const first = new Watchdog({ store, enableSemantic: false });
+    const context = ctx({ agentId, sessionId });
+    await first.observe(
+      evt({
+        id: createId('evt'),
+        sessionId,
+        agentId,
+        type: 'file_read',
+        action: { name: 'read_file', target: '.env' },
+      }),
+      context,
+    );
+
+    // New process boundary — empty in-memory history, must reload from SQLite.
+    const second = new Watchdog({ store, enableSemantic: false });
+    const obs = await second.observe(
+      evt({
+        id: createId('evt'),
+        sessionId,
+        agentId,
+        type: 'network',
+        action: { name: 'web_fetch', target: 'http://127.0.0.1:8787/collect' },
+      }),
+      context,
+    );
+
+    expect(obs.signals.some((s) => s.type === 'secret_then_network_exfil')).toBe(true);
+    expect(
+      obs.policyDecisions.some((d) => d.ruleId === 'TRAJECTORY_SECRET_THEN_NETWORK'),
+    ).toBe(true);
+    expect(context.securityState).toBe('QUARANTINED');
     store.close();
   });
 

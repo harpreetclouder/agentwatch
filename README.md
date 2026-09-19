@@ -36,8 +36,8 @@ pnpm test
 
 pnpm veyra init
 pnpm veyra demo                          # hook-protocol demo: .env BLOCKED
-pnpm veyra attack --mode=simulation      # 10-scenario corpus
-pnpm veyra attack --mode=runtime         # real PreToolUse deny path
+pnpm veyra attack --simulation           # synthetic PolicyEngine/Watchdog corpus
+pnpm veyra attack --runtime              # real PreToolUse: prompt-injection-secret-access
 ```
 
 ### Claude Code live enforcement
