@@ -23,7 +23,7 @@ Advanced: `--mode=hook|runtime|stage6` still available.
 
 ## Stage 9 (in progress)
 
-Enforcement regression safety: Level 1 PolicyEngine unit suite landed (`stage9-unit-regression.test.ts`). Levels 2–3 + CI pending.
+Enforcement regression safety: Levels 1–3 landed (`stage9-unit-regression.test.ts`, `stage9-hook-integration.test.ts`, `stage9-runtime.test.ts` opt-in via `VEYRA_RUNTIME_TESTS=1`). CI pending.
 
 ## Remaining gaps (later — do not start until requested)
 
