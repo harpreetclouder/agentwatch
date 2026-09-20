@@ -42,6 +42,8 @@ Incorrect claim: complete AI / agent security.
 
 ## Product demo
 
+**Front door — test whether your agent can be compromised:**
+
 ```bash
 pnpm install && pnpm build
 pnpm veyra demo
@@ -66,6 +68,13 @@ Prompt Injection
 Synthetic secrets only (`veyra_fake_*`). Do not put real credentials in the demo `.env`.
 
 Fixture project: [`examples/real-agent-demo/`](examples/real-agent-demo/).
+
+CI regression (simulation corpus):
+
+```bash
+pnpm veyra attack --ci
+pnpm veyra report --json
+```
 
 ---
 
@@ -96,16 +105,18 @@ Details: [`docs/HOOK_PROTOCOL.md`](docs/HOOK_PROTOCOL.md).
 ## Attack lab
 
 ```bash
-pnpm veyra attack --mode=simulation   # or: veyra attack --simulation
-pnpm veyra attack --mode=runtime      # or: veyra attack --runtime
+pnpm veyra attack --mode=simulation   # synthetic corpus (default; also: --ci)
+pnpm veyra attack --mode=hook         # real PreToolUse wire format via veyra hook
+pnpm veyra attack --mode=runtime      # live Claude Code only — never fakes success
 ```
 
 | Mode | What it exercises | What it is not |
 |------|-------------------|----------------|
 | **simulation** | Synthetic `AgentEvent`s through PolicyEngine, Watchdog, trajectories, and the state machine | Not a live Claude session |
-| **runtime** | Real PreToolUse hook path (real tool request shape → VEYRA → deny). First scenario: `prompt-injection-secret-access` | Does **not** use `simulateEvent()` |
+| **hook** | Real PreToolUse hook path (tool request shape → VEYRA → deny). First scenario: `prompt-injection-secret-access` | Not a live Claude session; does **not** use `simulateEvent()` |
+| **runtime** | Live Claude Code attempting the attack; honest UNAVAILABLE if Claude missing | Never fakes live success |
 
-Never label simulation results as runtime.
+Never label simulation or hook results as runtime.
 
 ---
 
@@ -170,6 +181,8 @@ CI runs install → typecheck → lint → build → test without Claude credent
 Optional live runtime tests: `VEYRA_RUNTIME_TESTS=1` (requires Claude CLI).
 
 Stack: TypeScript, pnpm, Turborepo, Zod, Vitest, SQLite, Next.js dashboard (local read-only).
+
+Naming note: remaining `jev` / `.jev` strings are intentional (external TypeSafe Jev model slug, legacy path compat). See [`docs/BACK_COMPAT_JEV.md`](docs/BACK_COMPAT_JEV.md).
 
 ---
 

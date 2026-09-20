@@ -34,6 +34,7 @@ export function cmdPolicy(args: string[]): number {
   console.log('Note: semantic/LLM analysis is advisory and must not bypass these rules.');
   console.log('');
   console.log('Configure advisory LLM (TypeSafe Jev via OpenRouter Decisions API):');
+  console.log('  # "Jev" = external OpenRouter model slug, not VEYRA product brand');
   console.log('  export OPENROUTER_API_KEY=sk-or-...');
   console.log('  # defaults: model=~typesafe/jev-latest');
   console.log('  # endpoint: POST https://openrouter.ai/api/alpha/decisions');

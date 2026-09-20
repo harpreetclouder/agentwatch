@@ -90,7 +90,8 @@ export class HttpLlmSemanticAnalyzer implements SemanticAnalyzer {
         body: JSON.stringify({
           model: this.options.model,
           temperature: 0,
-          // TypeSafe Jev returns structured decisions; ask for JSON when supported
+          // TypeSafe Jev (external OpenRouter model slug, not VEYRA brand) returns structured decisions
+          // ask for JSON when supported
           response_format: { type: 'json_object' },
           messages: [
             {

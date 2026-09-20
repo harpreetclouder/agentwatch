@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "VEYRA Watchdog"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "VEYRA Watchdog (post)"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
+            "timeout": 15,
+            "statusMessage": "VEYRA Watchdog (prompt)"
+          }
+        ]
+      }
+    ]
+  }
+}

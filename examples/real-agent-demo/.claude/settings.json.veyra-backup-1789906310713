@@ -5,9 +5,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog"
+            "statusMessage": "VEYRA Watchdog"
           }
         ]
       }
@@ -17,9 +17,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog (post)"
+            "statusMessage": "VEYRA Watchdog (post)"
           }
         ]
       }
@@ -29,9 +29,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/macbook/jev/.jev/hooks/claude-bridge.sh\"",
+            "command": "\"/Users/macbook/jev/examples/real-agent-demo/.veyra/hooks/claude-bridge.sh\"",
             "timeout": 15,
-            "statusMessage": "JEV Watchdog (prompt)"
+            "statusMessage": "VEYRA Watchdog (prompt)"
           }
         ]
       }

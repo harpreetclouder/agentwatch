@@ -20,7 +20,7 @@ export type { SimulatedStepResult } from './simulator.js';
 export { runAttacks } from './runner.js';
 export type { RunAttacksOptions, RunAttacksResult } from './runner.js';
 
-export { buildSecurityReport, formatExplainReport } from './report.js';
+export { buildSecurityReport, formatExplainReport, formatReportMarkdown, formatReportHtml } from './report.js';
 
 export {
   listAttacks,

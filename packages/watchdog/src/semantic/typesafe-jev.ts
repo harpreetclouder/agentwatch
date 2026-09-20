@@ -38,6 +38,11 @@ const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
 /**
  * Advisory semantic analyzer for TypeSafe Jev via OpenRouter Decisions API.
+ *
+ * NOTE: "Jev" here is an **external OpenRouter model slug** (TypeSafe),
+ * unrelated to the VEYRA product rename. Do not rebrand this identifier —
+ * the Decisions API requires `~typesafe/jev-*` model IDs.
+ *
  * Jev is not a chat model — it returns typed answers, not free-form text.
  * Failures degrade to LOW — never blocks, never overrides policies.
  */
@@ -157,7 +162,10 @@ export class TypesafeJevSemanticAnalyzer implements SemanticAnalyzer {
   }
 }
 
-/** OpenRouter/TypeSafe Jev model slugs use Decisions API, not chat completions. */
+/**
+ * OpenRouter/TypeSafe Jev model slugs use Decisions API, not chat completions.
+ * External model ID only — not VEYRA product branding.
+ */
 export function isTypesafeJevModel(model: string): boolean {
   const m = model.trim().toLowerCase();
   return m.includes('typesafe/jev') || m === 'jev-latest' || m.startsWith('jev-');

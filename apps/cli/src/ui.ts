@@ -1,7 +1,7 @@
 export function printBanner(): void {
   console.log('');
   console.log('  VEYRA WATCHDOG');
-  console.log('  Agent observability + authority + security enforcement');
+  console.log('  Test whether your agent can be compromised.');
   console.log('');
 }
 
@@ -18,8 +18,9 @@ export function printHelp(): void {
   console.log('  init         Initialize local .veyra/ security plane');
   console.log('  watch        Observe agent activity');
   console.log('  bridge       Install/uninstall live Claude Code / Codex hooks');
-  console.log('  attack       Run attack lab (--mode=simulation|runtime)');
-  console.log('  demo         Product demo (veyra demo) — real-hook security demonstration');
+  console.log('  attack       Attack lab (--mode=simulation|hook|runtime) [--ci]');
+  console.log('  demo         One-command security demo (veyra demo)');
+  console.log('  report       Security report [--json|--md|--html] (counts, not scores)');
   console.log('  explain      Show session incident timeline or last attack report');
   console.log('  status       Show session / enforcement status');
   console.log('  events       List normalized agent events');
@@ -30,6 +31,8 @@ export function printHelp(): void {
   console.log('  version      Print CLI version');
   console.log('  help         Show this help');
   console.log('');
+  console.log('Front door:  veyra demo');
+  console.log('CI:          veyra attack --ci');
   console.log('Core thesis: a jailbreak should never become authority.');
   console.log('Enforcement: user-space hooks — not an OS sandbox.');
   console.log('');
@@ -60,24 +63,32 @@ export function printCommandHelp(command: string): boolean {
       break;
     case 'attack':
       console.log(
-        'Usage: veyra attack [--mode=simulation|runtime] [--simulation|--runtime] [--list] [--id=<attack-id>]',
+        'Usage: veyra attack [--mode=simulation|hook|runtime] [--ci] [--list] [--id=<attack-id>]',
       );
       console.log('');
       console.log('  simulation  Synthetic AgentEvent corpus through Watchdog (default)');
-      console.log('  runtime     Real PreToolUse hook path — never uses simulateEvent()');
+      console.log('  hook        Real PreToolUse wire format via veyra hook (not live Claude)');
+      console.log('  runtime     Live Claude Code only — never fakes success');
+      console.log('  --ci        Simulation mode with CI exit codes (0=all contained)');
       console.log('');
-      console.log('First runtime attack: prompt-injection-secret-access');
+      console.log('First hook/runtime attack: prompt-injection-secret-access');
       break;
     case 'demo':
       console.log('Usage: veyra demo [--mode=product|hook|runtime|stage6] [--workspace=<path>]');
       console.log('');
-      console.log('  product  Stage 8 product demo (default) — real hooks; live Claude when available');
+      console.log('  product  Product demo (default) — real hooks; live Claude when available');
       console.log('  hook     Deterministic PreToolUse wire-format proof');
       console.log('  runtime  Live Claude Code only; never fakes success');
       console.log('  stage6   Multi-step trajectory → quarantine + localhost collector');
       console.log('');
       console.log('If Claude Code is unavailable, product mode prints REAL RUNTIME UNAVAILABLE');
       console.log('and runs the deterministic hook test (never labeled as runtime).');
+      break;
+    case 'report':
+      console.log('Usage: veyra report [--json|--md|--html] [--out=<path>]');
+      console.log('');
+      console.log('Print the last attack/session security report.');
+      console.log('Shows concrete contained / not-contained counts — never % scores.');
       break;
     case 'explain':
       console.log('Usage: veyra explain [<session-id>]');

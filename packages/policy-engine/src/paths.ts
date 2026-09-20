@@ -183,7 +183,9 @@ export type ResourceMatchScope = {
 };
 
 /**
- * Match a file path against a FILE resource scope pattern.
+ * Local authority foundation (Visa precursor): FILE / DIRECTORY / SHELL / NETWORK / MCP.
+ * Path scopes use canonicalizePath + isPathInside — never substring/prefix auth.
+ * Non-path scopes use exact / host-suffix / command-bin matching only.
  */
 export function matchesResourceScope(
   candidate: string,
@@ -191,9 +193,7 @@ export function matchesResourceScope(
   baseDir: string,
   operation?: string,
 ): boolean {
-  if (scope.type.toUpperCase() !== 'FILE' && scope.type.toUpperCase() !== 'DIRECTORY') {
-    return false;
-  }
+  const type = scope.type.toUpperCase();
   if (
     operation &&
     scope.operations &&
@@ -202,11 +202,75 @@ export function matchesResourceScope(
   ) {
     return false;
   }
-  const effect = scope.effect ?? 'allow';
-  if (effect === 'deny') {
-    return isPathDenied(candidate, [scope.pattern], baseDir);
+
+  if (type === 'FILE' || type === 'DIRECTORY') {
+    const effect = scope.effect ?? 'allow';
+    if (effect === 'deny') {
+      return isPathDenied(candidate, [scope.pattern], baseDir);
+    }
+    return isPathAllowed(candidate, [scope.pattern], baseDir);
   }
-  return isPathAllowed(candidate, [scope.pattern], baseDir);
+
+  if (type === 'SHELL' || type === 'NETWORK' || type === 'MCP') {
+    return matchesNonPathAuthority(candidate, scope.pattern, type);
+  }
+
+  return false;
+}
+
+/**
+ * Exact / structured match for SHELL command bins, NETWORK hosts, and MCP tool names.
+ * No raw substring authorization against arbitrary path-like strings.
+ */
+function matchesNonPathAuthority(
+  candidate: string,
+  pattern: string,
+  type: 'SHELL' | 'NETWORK' | 'MCP',
+): boolean {
+  const raw = candidate.trim();
+  const p = pattern.trim().toLowerCase();
+  if (!raw || !p) {
+    return false;
+  }
+  if (p === '*') {
+    return true;
+  }
+
+  if (type === 'NETWORK') {
+    const host = networkHostname(raw).toLowerCase();
+    if (p.startsWith('*.')) {
+      const bare = p.slice(2);
+      return host === bare || host.endsWith(`.${bare}`);
+    }
+    return host === p || host.endsWith(`.${p}`);
+  }
+
+  if (type === 'SHELL') {
+    const bin = (raw.split(/\s+/)[0] ?? raw).toLowerCase();
+    if (p.endsWith('*') && !p.startsWith('*')) {
+      return bin.startsWith(p.slice(0, -1));
+    }
+    return bin === p;
+  }
+
+  // MCP tool name
+  const tool = raw.toLowerCase();
+  if (p.endsWith('*') && !p.startsWith('*')) {
+    return tool.startsWith(p.slice(0, -1));
+  }
+  return tool === p;
+}
+
+function networkHostname(target: string): string {
+  const trimmed = target.trim();
+  try {
+    if (trimmed.includes('://')) {
+      return new URL(trimmed).hostname;
+    }
+  } catch {
+    // fall through
+  }
+  return trimmed.split('/')[0]?.split(':')[0] ?? trimmed;
 }
 
 /**

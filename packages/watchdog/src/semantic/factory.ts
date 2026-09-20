@@ -17,11 +17,14 @@ export type ResolvedSemanticConfig = {
   apiKeyConfigured: boolean;
   /** Human label for which backend (openrouter / openai / custom). */
   backend: 'openrouter' | 'openai' | 'custom' | 'none';
-  /** True when model is TypeSafe Jev (Decisions API, not chat). */
+  /** True when model is TypeSafe Jev (external Decisions API slug, not product brand). */
   decisionsApi: boolean;
 };
 
-/** TypeSafe Jev on OpenRouter — intended advisory model (cheap / low-latency). */
+/**
+ * Default OpenRouter model ID for TypeSafe Jev (Decisions API).
+ * External slug only — unrelated to VEYRA product rename; required by the API.
+ */
 export const DEFAULT_JEV_MODEL = '~typesafe/jev-latest';
 export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
@@ -57,16 +60,18 @@ function prefersOpenRouter(env: NodeJS.ProcessEnv, explicit: string): boolean {
 /**
  * Resolve advisory semantic provider from environment.
  *
- * Preferred stack: OpenRouter + TypeSafe Jev (Decisions API)
+ * Preferred stack: OpenRouter + TypeSafe Jev (Decisions API).
+ * "Jev" is an external model slug, not the VEYRA product brand.
  * https://openrouter.ai/~typesafe/jev-latest
  * POST https://openrouter.ai/api/alpha/decisions
  *
  * Env:
  * - OPENROUTER_API_KEY (preferred) | VEYRA_SEMANTIC_API_KEY | OPENAI_API_KEY
  * - VEYRA_SEMANTIC_MODEL (default ~typesafe/jev-latest)
- * - VEYRA_SEMANTIC_BASE_URL (chat models only; Jev uses Decisions URL)
+ * - VEYRA_SEMANTIC_BASE_URL (chat models only; TypeSafe Jev uses Decisions URL)
  * - VEYRA_SEMANTIC_DECISIONS_URL (default https://openrouter.ai/api/alpha/decisions)
  * - VEYRA_SEMANTIC_PROVIDER=mock|openrouter|openai-compatible|off
+ *   (alias `jev` = OpenRouter + TypeSafe Jev model; not product branding)
  */
 export function resolveSemanticConfig(
   env: NodeJS.ProcessEnv = process.env,
