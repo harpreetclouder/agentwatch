@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createId } from '@veyra/shared';
 import { createClaudeCodeAdapter } from '@veyra/adapter-claude-code';
 import { createCodexAdapter } from '@veyra/adapter-codex';
@@ -43,6 +44,19 @@ function extractHookCwd(raw: unknown, fallback: string): string {
   }
   const cwd = (raw as Record<string, unknown>)['cwd'];
   return typeof cwd === 'string' && cwd.length > 0 ? cwd : fallback;
+}
+
+/** Prefer veyra-demo-config.json task when present (ops-log parity on /live). */
+function resolveBridgeTask(workingDirectory: string): string {
+  try {
+    const configPath = join(workingDirectory, 'veyra-demo-config.json');
+    if (!existsSync(configPath)) return 'Claude Code PreToolUse (bridge)';
+    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as { task?: unknown };
+    if (typeof raw.task === 'string' && raw.task.trim()) return raw.task.trim();
+  } catch {
+    /* ignore */
+  }
+  return 'Claude Code PreToolUse (bridge)';
 }
 
 /**
@@ -178,7 +192,7 @@ export async function cmdHook(args: string[]): Promise<number> {
           id: sessionId,
           agentId,
           taskId: null,
-          taskDescription: 'live-bridge',
+          taskDescription: resolveBridgeTask(workingDirectory),
           workingDirectory,
           environment: 'local',
           status: 'ACTIVE',

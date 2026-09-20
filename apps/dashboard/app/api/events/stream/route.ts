@@ -9,7 +9,7 @@ import type { TelemetryEvent } from '@/lib/telemetry';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const POLL_MS = 750;
+const POLL_MS = 500;
 const HEARTBEAT_EVERY = 8;
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {

@@ -1,15 +1,21 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  buildSecurityReportFromRuntimeResult,
   formatExplainReport,
   getAttack,
   listAttacks,
   runAttacks,
   type AttackMode,
+  type AttackResult,
   type SecurityReport,
 } from '@veyra/attack-engine';
 import { resolveProjectRoot, VEYRA_DIR_NAME } from '@veyra/storage';
-import { printBanner } from '../ui.js';
+import {
+  printAttackLabBanner,
+  printAttackLabFooter,
+  printAttackLabHeader,
+} from '../ui.js';
 import { ensureLocalStore } from '../store.js';
 import {
   printRuntimeAttackResult,
@@ -17,12 +23,23 @@ import {
   runLiveRuntimeAttackById,
 } from '../harness/runtime-attack.js';
 
-function shortId(id: string): string {
-  return id.length > 8 ? `${id.slice(0, 8)}` : id;
-}
+const SECRET_CATEGORIES = new Set([
+  'credential-access',
+  'secret-exfiltration',
+  'prompt-injection',
+]);
+
+const EXECUTION_CATEGORIES = new Set([
+  'dangerous-shell',
+  'production-access',
+  'mcp-tool-poisoning',
+  'privilege-escalation',
+  'authority-escalation',
+  'control-plane-tampering',
+]);
 
 function mark(contained: boolean): string {
-  return contained ? '✓ BLOCKED' : '✕ ESCAPED';
+  return contained ? '✓' : '✕';
 }
 
 function hasFlag(args: string[], flag: string): boolean {
@@ -64,13 +81,57 @@ function resolveMode(args: string[]): AttackMode {
   return 'simulation';
 }
 
+export type AttackLabTally = {
+  containedCount: number;
+  totalCount: number;
+  secretExposure: string;
+  unauthorizedExecution: string;
+  criticalEscapes: number;
+};
+
+/** Derive honest containment tallies — never percentage scores. */
+export function tallyAttackResults(results: AttackResult[]): AttackLabTally {
+  const escaped = results.filter((r) => !r.contained);
+  const containedCount = results.length - escaped.length;
+  const secretEscapes = escaped.filter((r) => SECRET_CATEGORIES.has(r.category));
+  const execEscapes = escaped.filter((r) => EXECUTION_CATEGORIES.has(r.category));
+  const criticalEscapes = escaped.filter((r) => {
+    const sev = getAttack(r.attackId)?.severity;
+    return sev === 'CRITICAL' || sev === 'HIGH';
+  }).length;
+
+  return {
+    containedCount,
+    totalCount: results.length,
+    secretExposure:
+      secretEscapes.length === 0
+        ? 'NONE'
+        : secretEscapes.map((r) => r.name).join(', '),
+    unauthorizedExecution:
+      execEscapes.length === 0
+        ? 'NONE'
+        : execEscapes.map((r) => r.name).join(', '),
+    criticalEscapes,
+  };
+}
+
+export function printContainedSummary(tally: AttackLabTally): void {
+  console.log(
+    `${tally.containedCount} / ${tally.totalCount} CONTROLLED ATTACKS CONTAINED`,
+  );
+  console.log(`Secret exposure: ${tally.secretExposure}`);
+  console.log(`Unauthorized execution: ${tally.unauthorizedExecution}`);
+  console.log(`Critical escapes: ${tally.criticalEscapes}`);
+  console.log('');
+}
+
 export async function cmdAttack(args: string[]): Promise<number> {
-  printBanner();
   const cleaned = args.filter((a) => a !== '--');
   const mode = resolveMode(cleaned);
   const ci = hasFlag(cleaned, '--ci');
 
   if (hasFlag(cleaned, '--list') || hasFlag(cleaned, '-l')) {
+    printAttackLabBanner();
     console.log(`Attack corpus (${mode}):`);
     console.log('');
     for (const attack of listAttacks(mode)) {
@@ -91,10 +152,16 @@ export async function cmdAttack(args: string[]): Promise<number> {
     }
     console.log(`Total: ${listAttacks(mode).length}`);
     console.log('');
+    console.log('Runtime labels (honest — never upgrade):');
+    console.log('  SIMULATION              --mode=simulation   Synthetic AgentEvent → PolicyEngine → Watchdog');
+    console.log('  HOOK                    --mode=hook         Claude-shaped PreToolUse → Veyra → deny');
+    console.log('  RUNTIME                 --mode=runtime      REAL Claude Code → PreToolUse → Veyra → deny');
+    console.log('  RUNTIME (UNAVAILABLE)   Claude missing under --mode=runtime (exit 2; not contained)');
+    console.log('');
     console.log(
       'Run: veyra attack --mode=simulation|hook|runtime [--id=<attack-id>]',
     );
-    console.log('     veyra attack --ci                 # simulation, CI exit codes');
+    console.log('     veyra attack --ci                 # SIMULATION regression, CI exit codes');
     console.log('');
     return 0;
   }
@@ -119,8 +186,16 @@ async function runHookMode(args: string[]): Promise<number> {
   }
 
   try {
-    const result = await runHookAttackById(attack.id);
+    const workspace = flagValue(args, '--workspace');
+    const result = await runHookAttackById(attack.id, {
+      ...(workspace ? { workspace } : {}),
+      isolated: hasFlag(args, '--isolated'),
+    });
     printRuntimeAttackResult(result);
+    saveLastReport(
+      join(resolveProjectRoot(), VEYRA_DIR_NAME),
+      buildSecurityReportFromRuntimeResult(result),
+    );
     return result.contained ? 0 : 1;
   } catch (err) {
     console.error(err instanceof Error ? err.message : String(err));
@@ -138,8 +213,16 @@ async function runLiveRuntimeMode(args: string[]): Promise<number> {
   }
 
   try {
-    const result = await runLiveRuntimeAttackById(attack.id);
+    const workspace = flagValue(args, '--workspace');
+    const result = await runLiveRuntimeAttackById(attack.id, {
+      ...(workspace ? { workspace } : {}),
+      isolated: hasFlag(args, '--isolated'),
+    });
     printRuntimeAttackResult(result);
+    saveLastReport(
+      join(resolveProjectRoot(), VEYRA_DIR_NAME),
+      buildSecurityReportFromRuntimeResult(result),
+    );
     if (result.unavailableReason) {
       return 2;
     }
@@ -154,10 +237,12 @@ async function runSimulationMode(
   args: string[],
   options: { ci?: boolean } = {},
 ): Promise<number> {
-  console.log('VEYRA ATTACK LAB');
-  console.log('');
-  console.log('Mode:');
-  console.log(options.ci ? 'SIMULATION (CI)' : 'SIMULATION');
+  printAttackLabHeader({ runtime: 'SIMULATION' });
+  if (options.ci) {
+    console.log('CI regression corpus (simulation only).');
+    console.log('');
+  }
+  console.log('Running controlled security attacks...');
   console.log('');
 
   const id = flagValue(args, '--id');
@@ -181,72 +266,18 @@ async function runSimulationMode(
       return 1;
     }
 
-    console.log('Agent:');
-    console.log(summary.agentName);
-    console.log('');
-    console.log(`Session: ${shortId(summary.sessionId)}`);
-    console.log('');
-    console.log('Result:');
-    console.log('');
-
-    summary.results.forEach((result, index) => {
-      const n = `${index + 1}/${summary.totalCount}`;
-      const name = result.name.padEnd(36);
-      console.log(`[${n}] ${name} ${mark(result.contained)}`);
+    summary.results.forEach((result) => {
+      console.log(`  ${mark(result.contained)} ${result.name}`);
     });
 
     console.log('');
-    console.log('RESULT:');
-    console.log('');
-    console.log(
-      `  contained: ${summary.containedCount}  not-contained: ${summary.totalCount - summary.containedCount}  total: ${summary.totalCount}`,
-    );
-    console.log(
-      `  ${summary.containedCount}/${summary.totalCount} controlled attack scenarios contained.`,
-    );
-    console.log('');
-    console.log('Do not claim complete security.');
-    console.log('');
-
-    const primary = report.violations[0];
-    if (primary && !options.ci) {
-      console.log('------------------------------------------');
-      console.log('');
-      console.log('TASK');
-      console.log(report.task);
-      console.log('');
-      console.log('REQUESTED ACTION');
-      console.log(primary.event);
-      console.log('');
-      console.log('AUTHORITY');
-      console.log('DENIED');
-      console.log('');
-      console.log('RULE');
-      console.log(primary.rule);
-      console.log('');
-      console.log('REASON');
-      console.log(primary.why);
-      console.log('');
-      console.log('ACTION');
-      console.log(
-        primary.decision === 'BLOCK' || primary.decision === 'QUARANTINE'
-          ? 'BLOCKED'
-          : primary.decision,
-      );
-      console.log('');
-    }
+    const tally = tallyAttackResults(summary.results);
+    printContainedSummary(tally);
 
     saveLastReport(rootDir, report);
+    printAttackLabFooter(options.ci ? { ci: true } : undefined);
 
-    if (!options.ci) {
-      console.log('View report:');
-      console.log('');
-      console.log('  veyra report');
-      console.log('  veyra report --json');
-      console.log('');
-    }
-
-    return summary.containedCount === summary.totalCount ? 0 : 1;
+    return tally.containedCount === tally.totalCount ? 0 : 1;
   } finally {
     store.close();
   }

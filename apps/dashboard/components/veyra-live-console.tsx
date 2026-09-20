@@ -7,7 +7,9 @@ import {
   buildIncidentForSelection,
   buildStatePath,
   displayAgentName,
+  displayTask,
   latestBlockEventId,
+  unwrapAnnotationId,
   type ActivityRow,
 } from '@/lib/console-view';
 import type { LiveStreamMode } from '@/lib/live-session';
@@ -18,12 +20,12 @@ type Props = {
   sessionId?: string;
 };
 
-const markGlyph = { ok: '✓', warn: '⚠', block: '✕' } as const;
+const markGlyph = { ok: '✓', warn: '⚠', block: '✕', lock: '🔒' } as const;
 
 export function VeyraLiveConsole({ sessionId }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const live = useLiveTelemetry(
-    sessionId ? { sessionId } : { showHistory },
+    sessionId ? { sessionId, pollMs: 500 } : { showHistory, pollMs: 500 },
   );
   const {
     events,
@@ -125,9 +127,7 @@ export function VeyraLiveConsole({ sessionId }: Props) {
 
   const selectedEvent = useMemo(() => {
     if (!selectedId) return null;
-    const id = selectedId.startsWith('ann-inject-')
-      ? selectedId.slice('ann-inject-'.length)
-      : selectedId;
+    const id = unwrapAnnotationId(selectedId);
     return events.find((e) => e.eventId === id) ?? null;
   }, [events, selectedId]);
 
@@ -153,6 +153,7 @@ export function VeyraLiveConsole({ sessionId }: Props) {
         <div>
           <p className="live-eyebrow">VEYRA</p>
           <h1 className="live-title">LIVE</h1>
+          <p className="live-subtitle">Live Session</p>
         </div>
         <div className="live-status-pill">
           <span
@@ -225,8 +226,10 @@ export function VeyraLiveConsole({ sessionId }: Props) {
             <p className="muted split-empty split-waiting">
               Waiting for events…
               <span className="split-waiting-sub">
-                Listening on the security plane. Run an agent or demo to stream
-                blocks here.
+                Idle tail on the local .veyra plane (prefers{' '}
+                <Mono>examples/real-agent-demo</Mono>). Run a live agent or
+                runtime attack against that workspace to stream PreToolUse
+                decisions here. Temp product-demo workspaces are not visible.
               </span>
             </p>
           ) : activity.length === 0 ? (
@@ -336,13 +339,10 @@ function DetailAgent({
           ) : null}
           <div className="split-mono-stack">
             <div>
-              <span className="split-k">Agent ID</span> <Mono>{session.agentId}</Mono>
-            </div>
-            <div>
               <span className="split-k">Session</span> <Mono>{session.sessionId}</Mono>
             </div>
             <div>
-              <span className="split-k">Task</span> {session.task}
+              <span className="split-k">Task</span> {displayTask(session.task)}
             </div>
             <div>
               <span className="split-k">CWD</span> <Mono>{session.workingDirectory}</Mono>
@@ -359,7 +359,7 @@ function DetailAgent({
 function DetailStatePath({ path, current }: { path: string[]; current: string | null }) {
   return (
     <section className="split-detail-block">
-      <h2>Security State</h2>
+      <h2>State</h2>
       <div className="state-path" key={path.join('-')}>
         {path.map((state, i) => (
           <span key={`${state}-${i}`} className="state-path-item">
@@ -370,6 +370,9 @@ function DetailStatePath({ path, current }: { path: string[]; current: string | 
           </span>
         ))}
       </div>
+      <p className="split-detail-muted split-state-hint">
+        NORMAL → WARNING → RESTRICTED / QUARANTINED
+      </p>
     </section>
   );
 }
@@ -385,7 +388,7 @@ function DetailIncident({
 }) {
   return (
     <section className="split-detail-block split-incident">
-      <h2>Security Incident</h2>
+      <h2>Incident</h2>
       {incident ? (
         <>
           <div className="split-policy">{incident.policy}</div>

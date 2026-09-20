@@ -11,6 +11,9 @@ import { printBanner } from '../ui.js';
 import { lastReportPath } from './attack.js';
 import { openLocalStore } from '../store.js';
 
+const DEFAULT_DISCLAIMER =
+  'User-space hooks only. Do not claim complete agent security.';
+
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
 }
@@ -29,7 +32,7 @@ function flagValue(args: string[], name: string): string | undefined {
 
 /**
  * `veyra report` — print last security report with concrete contained/not-contained counts.
- * No percentage "security scores".
+ * No percentage "security scores". Embeds mode / RuntimeAttackProof / UNAVAILABLE honesty (P8).
  */
 export async function cmdReport(args: string[]): Promise<number> {
   const json = hasFlag(args, '--json');
@@ -50,19 +53,7 @@ export async function cmdReport(args: string[]): Promise<number> {
     return 1;
   }
 
-  // Backfill counts for older last.json files
-  const contained = report.containedCount ?? 0;
-  const total = report.totalCount ?? (contained + (report.escapedCount ?? 0));
-  const escaped = report.escapedCount ?? Math.max(0, total - contained);
-  report = {
-    ...report,
-    containedCount: contained,
-    escapedCount: escaped,
-    totalCount: total,
-    summaryLine:
-      report.summaryLine ||
-      `${contained}/${total} controlled attacks contained; ${escaped} not contained.`,
-  };
+  report = normalizeReport(report);
 
   if (json) {
     const payload = JSON.stringify(report, null, 2);
@@ -109,10 +100,30 @@ export async function cmdReport(args: string[]): Promise<number> {
   console.log(body);
   console.log('Containment summary:');
   console.log(
-    `  contained: ${contained}  not-contained: ${escaped}  total: ${total}`,
+    `  contained: ${report.containedCount}  not-contained: ${report.escapedCount}  total: ${report.totalCount}`,
   );
+  if (report.runtimeHonesty) {
+    console.log(`  runtime honesty: ${report.runtimeHonesty}`);
+  }
   console.log('');
   return 0;
+}
+
+/** Backfill counts + shareable fields for older last.json files. */
+function normalizeReport(report: SecurityReport): SecurityReport {
+  const contained = report.containedCount ?? 0;
+  const total = report.totalCount ?? (contained + (report.escapedCount ?? 0));
+  const escaped = report.escapedCount ?? Math.max(0, total - contained);
+  return {
+    ...report,
+    containedCount: contained,
+    escapedCount: escaped,
+    totalCount: total,
+    summaryLine:
+      report.summaryLine ||
+      `${contained}/${total} controlled attacks contained; ${escaped} not contained.`,
+    disclaimer: report.disclaimer || DEFAULT_DISCLAIMER,
+  };
 }
 
 function loadLastReport(): SecurityReport | null {
@@ -182,6 +193,9 @@ async function buildSessionReport(): Promise<SecurityReport | null> {
     ).length;
     const containedCount = blocked > 0 ? 1 : 0;
     const escapedCount = blocked > 0 ? 0 : violations.length > 0 ? 1 : 0;
+    const topViolation = violations.find(
+      (v) => v.decision === 'BLOCK' || v.decision === 'QUARANTINE',
+    );
 
     return {
       title: 'AGENT SECURITY REPORT',
@@ -196,6 +210,21 @@ async function buildSessionReport(): Promise<SecurityReport | null> {
       timeline,
       signals: [],
       summaryLine: `${containedCount}/${containedCount + escapedCount} controlled attack scenarios contained; ${escapedCount} not contained.`,
+      runtimeHonesty: 'HOOK',
+      unavailableReason: null,
+      blockedBeforeExecution: blocked > 0,
+      secretExposure: blocked > 0 ? 'NONE' : escapedCount > 0 ? 'UNKNOWN' : 'NONE',
+      topFinding: topViolation
+        ? {
+            name: topViolation.event,
+            category: 'live-session',
+            rule: topViolation.rule,
+            decision: topViolation.decision,
+            outcome: containedCount > 0 ? 'contained' : 'not-contained',
+          }
+        : null,
+      runtimeProof: null,
+      disclaimer: DEFAULT_DISCLAIMER,
     };
   } finally {
     store.close();

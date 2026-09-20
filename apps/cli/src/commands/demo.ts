@@ -9,12 +9,14 @@ import {
   prepareDemoWorkspace,
   printDemoProof,
   runHookProtocolProof,
+  runHookTrajectoryProof,
   runLiveClaudeRuntimeProof,
-  runStage6TrajectoryProof,
+  runLiveTrajectoryAttack,
   type DemoMode,
 } from '../harness/demo-proof.js';
 import { printProductDemo, runProductDemo } from '../harness/product-demo.js';
 import { resolveProjectRoot } from '@veyra/storage';
+import { printLiveWatchHint } from '../harness/watchable-plane.js';
 
 function flagValue(args: string[], name: string): string | undefined {
   const prefixed = args.find((a) => a.startsWith(`${name}=`));
@@ -47,8 +49,22 @@ function resolveMode(args: string[]): DemoMode | 'product' {
   if (mode === 'runtime' || mode === 'live' || mode === 'claude' || hasFlag(args, '--runtime')) {
     return 'runtime';
   }
-  if (mode === 'stage6' || mode === 'trajectory' || mode === 'exfil') {
-    return 'stage6';
+  if (
+    mode === 'live-trajectory-attack' ||
+    mode === 'live-trajectory' ||
+    mode === 'live_trajectory'
+  ) {
+    return 'live-trajectory-attack';
+  }
+  // Honest rename; stage6 / trajectory / exfil remain temporary aliases.
+  if (
+    mode === 'hook-trajectory-proof' ||
+    mode === 'hook-trajectory' ||
+    mode === 'stage6' ||
+    mode === 'trajectory' ||
+    mode === 'exfil'
+  ) {
+    return 'hook-trajectory-proof';
   }
   return 'hook';
 }
@@ -57,9 +73,11 @@ function resolveMode(args: string[]): DemoMode | 'product' {
  * `veyra demo` — Stage 8 product demonstration (default).
  *
  * Advanced:
- * - --mode=hook     deterministic PreToolUse proof
- * - --mode=runtime  live Claude only (exit 2 if unavailable)
- * - --mode=stage6   multi-step trajectory + localhost collector
+ * - --mode=hook                   deterministic PreToolUse proof
+ * - --mode=runtime                live Claude only (exit 2 if unavailable)
+ * - --mode=hook-trajectory-proof  multi-step hook trajectory + localhost collector
+ * - --mode=live-trajectory-attack live Claude multi-step (exit 2 if unavailable)
+ * Aliases: --mode=stage6 → hook-trajectory-proof
  */
 export async function cmdDemo(args: string[]): Promise<number> {
   const cleaned = args.filter((a) => a !== '--');
@@ -70,10 +88,22 @@ export async function cmdDemo(args: string[]): Promise<number> {
     return 1;
   }
 
-  // Stage 8 product demo — isolated temp workspace, honest labeling
+  // Stage 8 product demo — defaults to examples/real-agent-demo (LIVE-watchable)
   if (mode === 'product') {
     try {
-      const report = await runProductDemo({ cliEntry: cli });
+      const workspaceFlag = flagValue(cleaned, '--workspace');
+      const report = await runProductDemo({
+        cliEntry: cli,
+        ...(workspaceFlag
+          ? {
+              workspace: resolve(
+                resolveProjectRoot(process.cwd()),
+                workspaceFlag,
+              ),
+            }
+          : {}),
+        isolated: hasFlag(cleaned, '--isolated'),
+      });
       // No generic WATCHDOG banner — product demo has its own header
       printProductDemo(report);
       return report.contained ? 0 : 1;
@@ -92,10 +122,24 @@ export async function cmdDemo(args: string[]): Promise<number> {
   let workspace: string;
   let cleanup: (() => void) | null = null;
 
+  const needsExample =
+    mode === 'runtime' ||
+    mode === 'hook-trajectory-proof' ||
+    mode === 'live-trajectory-attack';
+
   if (workspaceFlag) {
     workspace = resolve(projectRoot, workspaceFlag);
     prepareDemoWorkspace(workspace, exampleRoot);
-  } else if ((mode === 'runtime' || mode === 'stage6') && existsSync(exampleRoot)) {
+  } else if (hasFlag(cleaned, '--isolated')) {
+    const tmp = mkdtempSync(join(tmpdir(), 'veyra-demo-'));
+    materializeExampleIntoTemp(exampleRoot, tmp);
+    workspace = tmp;
+    cleanup = () => rmSync(tmp, { recursive: true, force: true });
+  } else if (needsExample && existsSync(exampleRoot)) {
+    workspace = exampleRoot;
+    prepareDemoWorkspace(workspace, exampleRoot);
+  } else if (existsSync(exampleRoot)) {
+    // Default hook mode also uses watchable plane for LIVE parity
     workspace = exampleRoot;
     prepareDemoWorkspace(workspace, exampleRoot);
   } else {
@@ -105,13 +149,29 @@ export async function cmdDemo(args: string[]): Promise<number> {
     cleanup = () => rmSync(tmp, { recursive: true, force: true });
   }
 
+  if (!cleanup) {
+    printLiveWatchHint(workspace);
+  }
+
   try {
-    if (mode === 'stage6') {
-      const report = await runStage6TrajectoryProof({
+    if (mode === 'hook-trajectory-proof') {
+      const report = await runHookTrajectoryProof({
         workspace,
         cliEntry: cli,
       });
       printDemoProof(report);
+      return report.claimReady ? 0 : 1;
+    }
+
+    if (mode === 'live-trajectory-attack') {
+      const report = await runLiveTrajectoryAttack({
+        workspace,
+        cliEntry: cli,
+      });
+      printDemoProof(report);
+      if (report.mode === 'RUNTIME_NOT_EXECUTED') {
+        return 2;
+      }
       return report.claimReady ? 0 : 1;
     }
 

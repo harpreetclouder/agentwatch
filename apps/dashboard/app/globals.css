@@ -386,6 +386,13 @@ a:hover {
   font-size: 0.9rem;
 }
 
+.split-state-hint {
+  margin-top: 0.55rem;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
 .state-path {
   display: flex;
   flex-wrap: wrap;
@@ -487,6 +494,14 @@ a:hover {
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1;
+}
+
+.live-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .live-status-pill {
@@ -627,6 +642,10 @@ a:hover {
 
 .split-row.mark-block .activity-glyph {
   color: var(--block);
+}
+
+.split-row.mark-lock .activity-glyph {
+  color: var(--critical);
 }
 
 .activity-label {

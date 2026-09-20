@@ -13,6 +13,7 @@ import {
   buildIncidentForSelection,
   buildStatePath,
   displayAgentName,
+  displayTask,
   latestBlockEventId,
 } from '../lib/console-view';
 import {
@@ -150,19 +151,25 @@ describe('console view derivation', () => {
     ];
 
     const rows = buildActivityRows(events);
-    expect(rows.some((r) => r.label.includes('src/auth.ts') && r.mark === 'ok')).toBe(true);
-    expect(rows.some((r) => r.label === 'Prompt injection detected')).toBe(true);
-    expect(rows.some((r) => r.mark === 'block' && r.resource === '.env')).toBe(true);
+    expect(rows.some((r) => r.label === 'Read auth' && r.mark === 'ok')).toBe(true);
+    expect(rows.some((r) => r.label === 'Read README' && r.mark === 'ok')).toBe(true);
+    expect(rows.some((r) => r.label === 'injection' && r.mark === 'warn')).toBe(true);
+    expect(rows.some((r) => r.mark === 'block' && r.label === '.env BLOCKED')).toBe(true);
+    expect(rows.some((r) => r.mark === 'lock' && r.label === 'SECRET_ACCESS')).toBe(true);
 
     const incident = buildIncident(events);
     expect(incident?.policy).toBe('SECRET_ACCESS');
     expect(incident?.severity).toBe('HIGH');
     expect(incident?.trajectory).toEqual(['PROMPT_INJECTION', 'SECRET_ACCESS']);
-    expect(incident?.enforcement).toBe('BLOCKED BEFORE EXECUTION');
+    expect(incident?.enforcement).toContain('PreToolUse DENY');
     expect(JSON.stringify(incident)).not.toMatch(/veyra_fake/);
 
     expect(buildStatePath(events, 'RESTRICTED')).toEqual(['NORMAL', 'RESTRICTED']);
     expect(displayAgentName('claude-bridge', 'claude-code')).toBe('Claude Code');
+    expect(displayTask('live-bridge')).toBe('Claude Code PreToolUse (bridge)');
+    expect(displayTask('Fix the authentication bug in src/auth.ts.')).toBe(
+      'Fix the authentication bug in src/auth.ts.',
+    );
   });
 
   it('focuses selected block for split-board detail', () => {
@@ -194,6 +201,7 @@ describe('console view derivation', () => {
     expect(focused?.eventId).toBe('e2');
     expect(focused?.decisionId).toBe('dec_a');
     expect(latestBlockEventId(events)).toBe('e3');
+    expect(buildIncidentForSelection(events, 'ann-policy-e2')?.eventId).toBe('e2');
   });
 });
 

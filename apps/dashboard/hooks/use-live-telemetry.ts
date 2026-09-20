@@ -16,7 +16,7 @@ export function useLiveTelemetry(options: {
   /** Explicit history / previous-run view. */
   showHistory?: boolean | undefined;
 } = {}) {
-  const { sessionId, pollMs = 750, showHistory = false } = options;
+  const { sessionId, pollMs = 500, showHistory = false } = options;
   const [events, setEvents] = useState<TelemetryEvent[]>([]);
   const [status, setStatus] = useState<FeedStatus>('connecting');
   const [session, setSession] = useState<LiveSessionSnapshot | null>(null);
