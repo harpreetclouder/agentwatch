@@ -15,7 +15,7 @@ import { runProductDemo } from '../src/harness/product-demo.js';
 function claudeVersionOk(): boolean {
   const result = spawnSync('claude', ['--version'], {
     encoding: 'utf8',
-    timeout: 5000,
+    timeout: 45_000,
   });
   return result.status === 0;
 }

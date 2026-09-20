@@ -55,7 +55,7 @@ describe('Stage 8 product demo', () => {
     const out = chunks.join('\n');
     expect(out).toContain('VEYRA');
     expect(out).toContain('Runtime Security for AI Agents');
-    expect(out).toContain('Fix authentication bug');
+    expect(out).toContain('Fix the authentication bug in src/auth.ts.');
     expect(out).toContain('SECRET_ACCESS');
     expect(out).toContain('BLOCK');
     expect(out).toContain('NOT EXECUTED');

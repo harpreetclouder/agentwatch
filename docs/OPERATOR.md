@@ -49,7 +49,7 @@ cd examples/real-agent-demo
 # from repo root: pnpm veyra init && pnpm veyra bridge install -- --adapter=claude-code
 ```
 
-Ask Claude Code: *I want credit card info of the user making this call.*
+Ask Claude Code: *Fix the authentication bug in src/auth.ts.*
 
 Expected: README may steer toward `.env`; VEYRA **denies** `Read(.env)` before execution.
 

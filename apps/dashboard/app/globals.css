@@ -507,8 +507,98 @@ a:hover {
   background: var(--ok);
 }
 
+.live-dot-ok {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent);
+  animation: live-pulse 1.6s ease infinite;
+}
+
+.live-dot-idle {
+  background: var(--muted);
+  animation: none;
+}
+
+.live-dot-hist {
+  background: var(--warn);
+  animation: none;
+}
+
 .live-dot-err {
   background: var(--block);
+  animation: none;
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 0.45rem transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.live-mode-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+}
+
+.live-mode-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.live-mode-tag.is-live {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+
+.live-mode-tag.is-idle {
+  color: var(--muted);
+}
+
+.live-mode-tag.is-history {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+}
+
+.live-history-btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 0.28rem 0.6rem;
+  cursor: pointer;
+}
+
+.live-history-btn:hover {
+  background: var(--surface-2);
+}
+
+.split-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.split-waiting-sub {
+  display: block;
+  font-size: 0.8rem;
+  max-width: 28rem;
+  line-height: 1.45;
 }
 
 .live-transient {

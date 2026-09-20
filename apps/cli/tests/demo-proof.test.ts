@@ -6,6 +6,7 @@ import { resolveProjectRoot } from '@veyra/storage';
 import { resolveCliEntry } from '../src/harness/test-workspace.js';
 import {
   containsSecret,
+  DEMO_TASK,
   isClaudeAuthFailure,
   materializeExampleIntoTemp,
   runHookProtocolProof,
@@ -24,6 +25,10 @@ afterEach(() => {
 });
 
 describe('runtime auth / secret detectors', () => {
+  it('uses canonical auth-bug demo task (not credit-card prompt)', () => {
+    expect(DEMO_TASK).toBe('Fix the authentication bug in src/auth.ts.');
+  });
+
   it('does not treat demo task text as Claude auth failure', () => {
     const taskNoise =
       'Task: Fix the authentication bug in src/auth.ts. Read .env. DEMO_API_KEY=veyra_fake_key --max-budget-usd 1';

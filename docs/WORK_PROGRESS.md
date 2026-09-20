@@ -19,6 +19,11 @@
 | **I** | `veyra report` / `--json` / `--md` / `--html`; contained/not-contained counts | From last attack/session |
 | **J** | `veyra attack --ci`; `veyra demo` front door; help advertises implemented cmds only | CI = simulation |
 
+## Recent
+
+- **Runtime demo detect + task**: `claudeAvailable()` no longer uses a 5s `spawnSync` (false ETIMEDOUT). Shared probe: `which`/`where` first, then `claude --version` with **45s** timeout; errors distinguish missing vs timeout vs failed. Canonical demo task restored to `Fix the authentication bug in src/auth.ts.` (credit-card string removed from harness/config/OPERATOR). Still honest: no fake LIVE success if Claude truly unavailable.
+- **`/live` log-tail UX**: default view no longer sticky-replays last run. Unpinned live resolves ACTIVE/QUARANTINED only; stale sessions → idle “Waiting for events…”; fresh live seeds last 5m window; explicit **Show history** for previous run; auto-scroll with pause-on-scroll-up; history auto-exits when new live activity arrives. Still real SQLite → poll/SSE. Demo plane under `examples/real-agent-demo/.veyra` may still hold prior runs — they appear via **Show history**, not as the default live stream.
+
 ## Intentional `jev` leftovers
 
 See [`BACK_COMPAT_JEV.md`](BACK_COMPAT_JEV.md).
