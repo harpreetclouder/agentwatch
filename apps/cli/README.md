@@ -14,10 +14,14 @@ Stop it when it crosses its authority.
 
 ```bash
 pnpm --filter veyra build
-pnpm veyra demo                          # product demo
+pnpm veyra attack                        # front door — test whether your agent can be compromised
+pnpm veyra attack --mode=simulation      # SIMULATION synthetic AgentEvent → PolicyEngine → Watchdog
+pnpm veyra attack --mode=hook            # HOOK Claude-shaped PreToolUse → Veyra → deny
+pnpm veyra attack --mode=runtime         # RUNTIME live Claude only (never fakes success)
+pnpm veyra attack --ci                   # SIMULATION CI regression
+pnpm veyra demo                          # product narrative demo
 pnpm veyra bridge install|status|uninstall
-pnpm veyra attack --mode=simulation      # synthetic PolicyEngine / Watchdog
-pnpm veyra attack --mode=runtime         # real PreToolUse path (not simulateEvent)
+pnpm veyra explain && pnpm veyra report --json
 ```
 
 ## Hook path

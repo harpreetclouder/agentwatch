@@ -29,11 +29,13 @@ describe('Stage 8 product demo', () => {
   // Unit baseline uses deterministic hooks only (live Claude is opt-in via VEYRA_RUNTIME_TESTS / interactive demo).
   it('runs product demo with honest labeling and containment when hooks work', async () => {
     expect(existsSync(cli)).toBe(true);
-    const report = await runProductDemo({ cliEntry: cli, allowLiveRuntime: false });
+    const report = await runProductDemo({ cliEntry: cli, allowLiveRuntime: false, isolated: true });
 
     expect(report.realRuntime).toBe(false);
     expect(report.path).toBe('DETERMINISTIC_HOOK');
     expect(report.realRuntimeUnavailableReason).toBeTruthy();
+    expect(report.task).toBe('Fix the authentication bug in src/auth.ts.');
+    expect(report.task).not.toMatch(/\.env/i);
 
     expect(report.blocked).toBe(true);
     expect(report.policy).toBe('SECRET_ACCESS');
@@ -55,7 +57,7 @@ describe('Stage 8 product demo', () => {
     const out = chunks.join('\n');
     expect(out).toContain('VEYRA');
     expect(out).toContain('Runtime Security for AI Agents');
-    expect(out).toContain('Fix authentication bug');
+    expect(out).toContain('Fix the authentication bug in src/auth.ts.');
     expect(out).toContain('SECRET_ACCESS');
     expect(out).toContain('BLOCK');
     expect(out).toContain('NOT EXECUTED');
@@ -70,7 +72,9 @@ describe('Stage 8 product demo', () => {
     const prev = process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'];
     process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'] = '1';
     try {
-      const { code, out } = await capture(['demo']);
+      // --isolated avoids racing the shared LIVE plane with parallel attack-lab CLI tests.
+      // Watch LIVE coverage: watchable-plane.test.ts + attack --mode=hook.
+      const { code, out } = await capture(['demo', '--isolated']);
       expect(code).toBe(0);
       expect(out).toContain('VEYRA');
       expect(out).toContain('1/1 controlled attack contained');

@@ -16,18 +16,19 @@ describe('attack lab safety', () => {
 });
 
 describe('attack corpus', () => {
-  it('lists 10 scenarios', () => {
-    expect(listAttacks()).toHaveLength(10);
+  it('lists 11 scenarios', () => {
+    expect(listAttacks()).toHaveLength(11);
   });
 
-  it('marks prompt-injection-secret-access as hook/runtime-capable', () => {
+  it('marks prompt-injection-secret-access and live-trajectory as hook/runtime-capable', () => {
     const hook = listAttacks('hook');
     const runtime = listAttacks('runtime');
-    expect(hook).toHaveLength(1);
-    expect(runtime).toHaveLength(1);
-    expect(runtime[0]?.id).toBe('prompt-injection-secret-access');
-    expect(runtime[0]?.expectedPolicy).toBe('SECRET_ACCESS');
-    expect(runtime[0]?.expectedDecision).toBe('BLOCK');
+    expect(hook).toHaveLength(2);
+    expect(runtime).toHaveLength(2);
+    expect(hook.map((a) => a.id).sort()).toEqual([
+      'live-trajectory-attack',
+      'prompt-injection-secret-access',
+    ]);
     expect(runtime[0]?.runtimeSupported).toBe(true);
   });
 
@@ -35,9 +36,9 @@ describe('attack corpus', () => {
     const store = SqliteVeyraStore.openMemory();
     const { summary, results } = await runAttacks({ store });
 
-    expect(results).toHaveLength(10);
-    expect(summary.totalCount).toBe(10);
-    expect(summary.containedCount).toBe(10);
+    expect(results).toHaveLength(11);
+    expect(summary.totalCount).toBe(11);
+    expect(summary.containedCount).toBe(11);
     expect(summary.mode).toBe('simulation');
     for (const result of results) {
       expect(result.contained, result.attackId).toBe(true);
@@ -70,11 +71,21 @@ describe('prompt injection → credential access', () => {
     expect(report.violations.length).toBeGreaterThan(0);
     expect(report.violations.some((v) => v.rule === 'SECRET_ACCESS')).toBe(true);
     expect(report.violations.some((v) => v.decision === 'BLOCK')).toBe(true);
+    expect(report.runtimeHonesty).toBe('SIMULATION');
+    expect(report.mode).toBe('simulation');
+    expect(report.secretExposure).toBe('NONE');
+    expect(report.blockedBeforeExecution).toBe(true);
+    expect(report.topFinding?.rule).toBe('SECRET_ACCESS');
+    expect(report.runtimeProof).toBeNull();
+    expect(report.disclaimer).toMatch(/User-space hooks/i);
 
     const text = formatExplainReport(report);
     expect(text).toContain('SECRET_ACCESS');
     expect(text).toContain('BLOCK');
     expect(text).toContain('Fix authentication bug');
+    expect(text).toContain('Runtime honesty:');
+    expect(text).toContain('SIMULATION');
+    expect(text).not.toMatch(/\d+%/);
 
     store.close();
   });

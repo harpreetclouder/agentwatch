@@ -8,10 +8,12 @@ export const SECURITY_STATE_LADDER = [
   'REVOKED',
 ] as const;
 
+export type ActivityMark = 'ok' | 'warn' | 'block' | 'lock';
+
 export type ActivityRow = {
   id: string;
   kind: 'event' | 'annotation';
-  mark: 'ok' | 'warn' | 'block';
+  mark: ActivityMark;
   label: string;
   timestamp: string;
   action: string;
@@ -45,25 +47,54 @@ function isSecretBlock(evt: TelemetryEvent): boolean {
   );
 }
 
-function markFor(evt: TelemetryEvent): 'ok' | 'warn' | 'block' {
+function markFor(evt: TelemetryEvent): ActivityMark {
   if (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') return 'block';
   if (evt.decision === 'WARN') return 'warn';
   return 'ok';
 }
 
-function actionLabel(evt: TelemetryEvent): string {
-  const name = evt.action.name.replace(/_/g, ' ');
-  const resource = evt.action.target ?? '';
-  if (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') {
-    return `${name}${resource ? ` ${resource}` : ''} BLOCKED`;
+/** Short resource label for ops tail (auth.ts, README, .env). */
+function shortResource(target: string | undefined): string {
+  if (!target) return '';
+  const base = target.replace(/\\/g, '/').split('/').pop() ?? target;
+  if (base.toLowerCase().startsWith('readme')) return 'README';
+  if (base === 'auth.ts' || target.endsWith('/auth.ts') || target.endsWith('src/auth.ts')) {
+    return 'auth';
   }
-  return `${name}${resource ? ` ${resource}` : ''}`;
+  return base;
+}
+
+/** Claude-shaped tool verb for display (Read / Write / …). */
+function toolVerb(actionName: string): string {
+  const n = actionName.replace(/_/g, ' ').trim();
+  const lower = n.toLowerCase();
+  if (lower === 'read file' || lower === 'file read' || lower === 'read') return 'Read';
+  if (lower === 'write file' || lower === 'file write' || lower === 'write' || lower === 'edit file') {
+    return 'Write';
+  }
+  if (lower === 'bash' || lower === 'shell') return 'Bash';
+  // Preserve PascalCase tool names from Claude (Read, Edit, …)
+  if (/^[A-Z][A-Za-z0-9]*$/.test(actionName)) return actionName;
+  return n.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Ops-tail labels: "Read auth", "Read README", ".env BLOCKED".
+ * Never includes secret contents.
+ */
+export function actionLabel(evt: TelemetryEvent): string {
+  const resource = shortResource(evt.action.target);
+  const verb = toolVerb(evt.action.name);
+  if (evt.decision === 'BLOCK' || evt.decision === 'QUARANTINE') {
+    return resource ? `${resource} BLOCKED` : `${verb} BLOCKED`;
+  }
+  return resource ? `${verb} ${resource}` : verb;
 }
 
 /**
  * Build live activity rows from real telemetry.
- * Inserts a single "Prompt injection detected" annotation when README
- * precedes a SECRET_ACCESS block in the same session (trajectory signal).
+ * Inserts injection + SECRET_ACCESS annotations when README precedes a
+ * secret block (trajectory signal) — ops-log parity with CLI proof story.
  */
 export function buildActivityRows(events: TelemetryEvent[]): ActivityRow[] {
   const hasInjectionTrajectory =
@@ -89,11 +120,26 @@ export function buildActivityRows(events: TelemetryEvent[]): ActivityRow[] {
         id: `ann-inject-${evt.eventId}`,
         kind: 'annotation',
         mark: 'warn',
-        label: 'Prompt injection detected',
+        label: 'injection',
         timestamp: evt.timestamp,
         action: 'trajectory',
         resource: evt.action.target ?? 'README',
         decision: 'WARN',
+      });
+    }
+
+    // Policy lock line after SECRET_ACCESS / .env deny (honest rule id, no contents).
+    if (isSecretBlock(evt)) {
+      const policy = evt.policy ?? 'SECRET_ACCESS';
+      rows.push({
+        id: `ann-policy-${evt.eventId}`,
+        kind: 'annotation',
+        mark: 'lock',
+        label: policy,
+        timestamp: evt.timestamp,
+        action: 'policy',
+        resource: evt.action.target ?? '.env',
+        decision: evt.decision,
       });
     }
   }
@@ -117,9 +163,7 @@ export function buildIncidentForSelection(
 ): IncidentView | null {
   if (!selectedId) return buildIncident(events);
 
-  const eventId = selectedId.startsWith('ann-inject-')
-    ? selectedId.slice('ann-inject-'.length)
-    : selectedId;
+  const eventId = unwrapAnnotationId(selectedId);
 
   const selected = events.find((e) => e.eventId === eventId);
   if (!selected) return buildIncident(events);
@@ -129,6 +173,17 @@ export function buildIncidentForSelection(
   }
 
   return null;
+}
+
+/** Strip annotation prefixes (ann-inject- / ann-policy-) to the backing event id. */
+export function unwrapAnnotationId(selectedId: string): string {
+  if (selectedId.startsWith('ann-inject-')) {
+    return selectedId.slice('ann-inject-'.length);
+  }
+  if (selectedId.startsWith('ann-policy-')) {
+    return selectedId.slice('ann-policy-'.length);
+  }
+  return selectedId;
 }
 
 function incidentFromEvent(
@@ -148,7 +203,8 @@ function incidentFromEvent(
       blocked.reason ??
       'Agent attempted to access a secret-bearing resource outside its authority.',
     trajectory,
-    enforcement: 'BLOCKED BEFORE EXECUTION',
+    // Honest hook vocabulary — deny happens on PreToolUse before tool runs.
+    enforcement: 'PreToolUse DENY · BLOCKED BEFORE EXECUTION',
     eventId: blocked.eventId,
     decisionId: blocked.decisionId,
     sessionId: blocked.sessionId,
@@ -192,4 +248,15 @@ export function displayAgentName(name: string, runtime: string): string {
   if (n.includes('claude') || r.includes('claude')) return 'Claude Code';
   if ((name ?? '').trim()) return name;
   return runtime || 'Agent';
+}
+
+/**
+ * Task line for Live Session detail.
+ * Legacy bridge sessions stored "live-bridge" — show honest label, never invent a task.
+ */
+export function displayTask(task: string): string {
+  const t = (task ?? '').trim();
+  if (!t || t === 'No task description') return '—';
+  if (t === 'live-bridge') return 'Claude Code PreToolUse (bridge)';
+  return t;
 }

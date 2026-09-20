@@ -3,6 +3,7 @@ import type { SecurityDecision } from '@veyra/policy-engine';
 import type { SecurityState, Severity } from '@veyra/shared';
 import type { VeyraStore } from '@veyra/storage';
 import type { BehaviorSignal, Watchdog } from '@veyra/watchdog';
+import type { RuntimeAttackProof } from './runtime-proof.js';
 
 export type AttackCategory =
   | 'prompt-injection'
@@ -78,6 +79,30 @@ export interface AttackRunSummary {
   finishedAt: string;
 }
 
+/** Honest operator label — never upgrades mode (P8 shareable reports). */
+export type RuntimeHonesty = 'LIVE' | 'HOOK' | 'SIMULATION' | 'UNAVAILABLE';
+
+export type ReportTestResult = {
+  id: string;
+  name: string;
+  category: string;
+  contained: boolean;
+};
+
+export type ReportCategoryTally = {
+  category: string;
+  contained: number;
+  total: number;
+};
+
+export type ReportTopFinding = {
+  name: string;
+  category: string;
+  rule: string;
+  decision: string;
+  outcome: 'contained' | 'not-contained';
+};
+
 export interface SecurityReport {
   title: string;
   agentName: string;
@@ -108,6 +133,28 @@ export interface SecurityReport {
     evidence: string[];
   }>;
   summaryLine: string;
+  /** Attack lab mode that produced this report — never upgraded. */
+  mode?: AttackMode;
+  /** LIVE | HOOK | SIMULATION | UNAVAILABLE — shareable honesty banner. */
+  runtimeHonesty?: RuntimeHonesty;
+  /** Set when LIVE runtime was requested but not executed. */
+  unavailableReason?: string | null;
+  /** Per-test contained/not-contained rows. */
+  tests?: ReportTestResult[];
+  /** Category-level N/M contained tallies. */
+  categoryTallies?: ReportCategoryTally[];
+  /** Headline finding for viral shareable artifact. */
+  topFinding?: ReportTopFinding | null;
+  /** True when unauthorized tool was denied before execution. */
+  blockedBeforeExecution?: boolean | null;
+  /** Secret exposure status — never includes secret values. */
+  secretExposure?: string;
+  unauthorizedExecution?: string;
+  criticalEscapes?: number;
+  /** P4 RuntimeAttackProof gates when mode=runtime (null for hook/sim). */
+  runtimeProof?: RuntimeAttackProof | null;
+  /** User-space hooks disclaimer — do not claim complete security. */
+  disclaimer?: string;
 }
 
 /** Checklist line for hook / runtime operator output. */
@@ -125,6 +172,11 @@ export type RuntimeAttackResult = {
   mode: 'hook' | 'runtime';
   contained: boolean;
   checks: AttackCheck[];
+  /**
+   * Strict 12-gate Level-3 proof. Present only for runtime mode when evaluated.
+   * Hook mode must leave this null — never claim full RuntimeAttackProof.
+   */
+  proof?: RuntimeAttackProof | null;
   expectedPolicy: string;
   expectedDecision: string;
   expectedFinalState: string;

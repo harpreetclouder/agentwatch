@@ -21,8 +21,9 @@ export default async function LivePage() {
           </div>
         </header>
         <EmptyState>
-          Security plane not initialized. Run the real-agent demo or{' '}
-          <Mono>veyra init</Mono>.
+          Security plane not initialized. Run Claude in{' '}
+          <Mono>examples/real-agent-demo</Mono> or <Mono>veyra init</Mono>.
+          Product-demo temp workspaces are not visible here.
         </EmptyState>
       </div>
     );

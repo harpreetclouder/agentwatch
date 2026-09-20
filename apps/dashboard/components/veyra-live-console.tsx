@@ -7,9 +7,12 @@ import {
   buildIncidentForSelection,
   buildStatePath,
   displayAgentName,
+  displayTask,
   latestBlockEventId,
+  unwrapAnnotationId,
   type ActivityRow,
-} from '@/lib/console-view'; // Split Board selectors
+} from '@/lib/console-view';
+import type { LiveStreamMode } from '@/lib/live-session';
 import type { TelemetryEvent } from '@/lib/telemetry';
 import { DecisionBadge, Mono, SeverityBadge, StateBadge } from '@/lib/ui';
 
@@ -17,11 +20,29 @@ type Props = {
   sessionId?: string;
 };
 
-const markGlyph = { ok: '✓', warn: '⚠', block: '✕' } as const;
+const markGlyph = { ok: '✓', warn: '⚠', block: '✕', lock: '🔒' } as const;
 
 export function VeyraLiveConsole({ sessionId }: Props) {
-  const live = useLiveTelemetry(sessionId ? { sessionId } : {});
-  const { events, session, status, planeRoot, error, securityState } = live;
+  const [showHistory, setShowHistory] = useState(false);
+  const live = useLiveTelemetry(
+    sessionId ? { sessionId, pollMs: 500 } : { showHistory, pollMs: 500 },
+  );
+  const {
+    events,
+    session,
+    status,
+    planeRoot,
+    error,
+    securityState,
+    streamMode,
+    hasHistory,
+    liveWake,
+  } = live;
+
+  // New live activity while viewing previous run → snap back to live tail
+  useEffect(() => {
+    if (liveWake && showHistory) setShowHistory(false);
+  }, [liveWake, showHistory]);
 
   const activity = useMemo(() => buildActivityRows(events), [events]);
   const statePath = useMemo(
@@ -32,8 +53,10 @@ export function VeyraLiveConsole({ sessionId }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userLocked, setUserLocked] = useState(false);
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [follow, setFollow] = useState(true);
   const prevBlockRef = useRef<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
+  const prevLenRef = useRef(0);
 
   // Auto-focus newest BLOCK; pulse when a new one arrives
   useEffect(() => {
@@ -62,16 +85,40 @@ export function VeyraLiveConsole({ sessionId }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [events]);
 
-  // Keep selected row visible
+  // Pause follow when operator scrolls up (log-tail UX)
   useEffect(() => {
-    if (!selectedId || !listRef.current) return;
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setFollow(dist < 48);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [activity.length > 0]);
+
+  // Auto-scroll to latest on new events when following
+  useEffect(() => {
+    if (!follow || !listRef.current) return;
+    if (events.length <= prevLenRef.current) {
+      prevLenRef.current = events.length;
+      return;
+    }
+    prevLenRef.current = events.length;
+    const el = listRef.current;
+    el.scrollTop = el.scrollHeight;
+  }, [events.length, follow]);
+
+  // Keep selected row visible when not free-scrolling
+  useEffect(() => {
+    if (!selectedId || !listRef.current || !userLocked) return;
     const safe =
       typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
         ? CSS.escape(selectedId)
         : selectedId.replace(/"/g, '\\"');
     const el = listRef.current.querySelector(`[data-row-id="${safe}"]`);
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [selectedId]);
+  }, [selectedId, userLocked]);
 
   const incident = useMemo(
     () => buildIncidentForSelection(events, selectedId),
@@ -80,9 +127,7 @@ export function VeyraLiveConsole({ sessionId }: Props) {
 
   const selectedEvent = useMemo(() => {
     if (!selectedId) return null;
-    const id = selectedId.startsWith('ann-inject-')
-      ? selectedId.slice('ann-inject-'.length)
-      : selectedId;
+    const id = unwrapAnnotationId(selectedId);
     return events.find((e) => e.eventId === id) ?? null;
   }, [events, selectedId]);
 
@@ -93,17 +138,39 @@ export function VeyraLiveConsole({ sessionId }: Props) {
     setUserLocked(true);
   };
 
+  const effectiveMode: LiveStreamMode = sessionId
+    ? streamMode
+    : showHistory
+      ? 'history'
+      : streamMode;
+
+  const statusLabel = statusLabelFor(status, effectiveMode, follow);
+  const waiting = activity.length === 0 && effectiveMode !== 'history';
+
   return (
     <div className="split-board">
       <header className="split-top">
         <div>
           <p className="live-eyebrow">VEYRA</p>
           <h1 className="live-title">LIVE</h1>
+          <p className="live-subtitle">Live Session</p>
         </div>
         <div className="live-status-pill">
-          <span className={`live-dot live-dot-${status === 'error' ? 'err' : 'ok'}`} />
-          <span>{status}</span>
-          {securityState ? <StateBadge state={securityState} /> : null}
+          <span
+            className={`live-dot live-dot-${
+              status === 'error'
+                ? 'err'
+                : effectiveMode === 'live'
+                  ? 'ok'
+                  : effectiveMode === 'history'
+                    ? 'hist'
+                    : 'idle'
+            }`}
+          />
+          <span>{statusLabel}</span>
+          {securityState && effectiveMode !== 'idle' ? (
+            <StateBadge state={securityState} />
+          ) : null}
         </div>
       </header>
 
@@ -115,11 +182,58 @@ export function VeyraLiveConsole({ sessionId }: Props) {
         </p>
       ) : null}
 
+      {!sessionId ? (
+        <div className="live-mode-bar">
+          {effectiveMode === 'history' ? (
+            <span className="live-mode-tag is-history">Previous run</span>
+          ) : effectiveMode === 'live' ? (
+            <span className="live-mode-tag is-live">Streaming</span>
+          ) : (
+            <span className="live-mode-tag is-idle">Idle</span>
+          )}
+          {hasHistory ? (
+            <button
+              type="button"
+              className="live-history-btn"
+              onClick={() => setShowHistory((v) => !v)}
+            >
+              {showHistory ? 'Back to live tail' : 'Show history'}
+            </button>
+          ) : null}
+          {!follow && activity.length > 0 ? (
+            <button
+              type="button"
+              className="live-history-btn"
+              onClick={() => {
+                setFollow(true);
+                if (listRef.current) {
+                  listRef.current.scrollTop = listRef.current.scrollHeight;
+                }
+              }}
+            >
+              Jump to latest
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="split-frame">
         <aside className="split-stream">
-          <div className="split-stream-head">Live Activity</div>
-          {activity.length === 0 ? (
-            <p className="muted split-empty">Waiting for agent events…</p>
+          <div className="split-stream-head">
+            {effectiveMode === 'history' ? 'Session History' : 'Live Activity'}
+          </div>
+          {waiting ? (
+            <p className="muted split-empty split-waiting">
+              Waiting for events…
+              <span className="split-waiting-sub">
+                Idle tail on the local .veyra plane (prefers{' '}
+                <Mono>examples/real-agent-demo</Mono>). Run a live agent or
+                runtime attack against that workspace to stream PreToolUse
+                decisions here. Temp product-demo workspaces are not visible.
+              </span>
+            </p>
+          ) : activity.length === 0 ? (
+            <p className="muted split-empty">No events in this session.</p>
           ) : (
             <ul className="split-activity" ref={listRef}>
               {activity.map((row) => {
@@ -160,11 +274,19 @@ export function VeyraLiveConsole({ sessionId }: Props) {
               })}
             </ul>
           )}
-          <div className="split-stream-foot">Auto-follow blocks · stream updates live</div>
+          <div className="split-stream-foot">
+            {effectiveMode === 'live'
+              ? follow
+                ? 'Auto-scroll on · streaming'
+                : 'Scroll paused · jump to latest to resume'
+              : effectiveMode === 'history'
+                ? 'Previous run · not a live stream'
+                : 'Idle · waiting for the next session'}
+          </div>
         </aside>
 
         <aside className="split-detail">
-          <DetailAgent session={session} />
+          <DetailAgent session={session} mode={effectiveMode} />
           <DetailStatePath path={statePath} current={securityState} />
           <DetailIncident
             incident={incident}
@@ -178,8 +300,21 @@ export function VeyraLiveConsole({ sessionId }: Props) {
   );
 }
 
+function statusLabelFor(
+  status: string,
+  mode: LiveStreamMode,
+  follow: boolean,
+): string {
+  if (status === 'error') return 'error';
+  if (mode === 'history') return 'history';
+  if (mode === 'idle') return 'waiting';
+  if (!follow) return 'paused';
+  return status === 'live-sse' ? 'streaming' : status === 'live-poll' ? 'streaming' : status;
+}
+
 function DetailAgent({
   session,
+  mode,
 }: {
   session: {
     agentName: string;
@@ -189,6 +324,7 @@ function DetailAgent({
     task: string;
     workingDirectory: string;
   } | null;
+  mode: LiveStreamMode;
 }) {
   return (
     <section className="split-detail-block">
@@ -198,15 +334,15 @@ function DetailAgent({
           <div className="split-agent-name">
             {displayAgentName(session.agentName, session.agentRuntime)}
           </div>
+          {mode === 'history' ? (
+            <p className="split-detail-muted">Previous run (not live)</p>
+          ) : null}
           <div className="split-mono-stack">
-            <div>
-              <span className="split-k">Agent ID</span> <Mono>{session.agentId}</Mono>
-            </div>
             <div>
               <span className="split-k">Session</span> <Mono>{session.sessionId}</Mono>
             </div>
             <div>
-              <span className="split-k">Task</span> {session.task}
+              <span className="split-k">Task</span> {displayTask(session.task)}
             </div>
             <div>
               <span className="split-k">CWD</span> <Mono>{session.workingDirectory}</Mono>
@@ -223,7 +359,7 @@ function DetailAgent({
 function DetailStatePath({ path, current }: { path: string[]; current: string | null }) {
   return (
     <section className="split-detail-block">
-      <h2>Security State</h2>
+      <h2>State</h2>
       <div className="state-path" key={path.join('-')}>
         {path.map((state, i) => (
           <span key={`${state}-${i}`} className="state-path-item">
@@ -234,6 +370,9 @@ function DetailStatePath({ path, current }: { path: string[]; current: string | 
           </span>
         ))}
       </div>
+      <p className="split-detail-muted split-state-hint">
+        NORMAL → WARNING → RESTRICTED / QUARANTINED
+      </p>
     </section>
   );
 }
@@ -249,7 +388,7 @@ function DetailIncident({
 }) {
   return (
     <section className="split-detail-block split-incident">
-      <h2>Security Incident</h2>
+      <h2>Incident</h2>
       {incident ? (
         <>
           <div className="split-policy">{incident.policy}</div>

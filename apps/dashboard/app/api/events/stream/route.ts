@@ -1,23 +1,21 @@
 import { openDashboardStore } from '@/lib/store';
 import {
-  loadTelemetryBatch,
-  resolveLiveSession,
-  toSessionSnapshot,
+  readLiveEventsBatch,
   type LiveSessionSnapshot,
+  type LiveStreamMode,
 } from '@/lib/live-session';
 import type { TelemetryEvent } from '@/lib/telemetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const POLL_MS = 750;
+const POLL_MS = 500;
 const HEARTBEAT_EVERY = 8;
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
       reject(new DOMException('Aborted', 'AbortError'));
-      return;
     }
     const t = setTimeout(resolve, ms);
     signal.addEventListener(
@@ -33,14 +31,18 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 
 /**
  * SSE live telemetry stream.
- * GET /api/events/stream?sessionId=
+ * GET /api/events/stream?sessionId=&history=1
+ *
+ * Live (default): seeks to tip / recent window — does not sticky-replay last run.
  */
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const sessionIdParam = url.searchParams.get('sessionId');
+  const history = url.searchParams.get('history') === '1';
   const encoder = new TextEncoder();
   let cursor: string | null = null;
   let ticks = 0;
+  let lastStreamMode: LiveStreamMode | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -54,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
 
       try {
         while (!request.signal.aborted) {
-          const batch = await readBatch(sessionIdParam, cursor);
+          const batch = await readBatch(sessionIdParam, cursor, history);
           if (batch.error === 'uninitialized') {
             send('error', { error: 'security_plane_uninitialized' });
             break;
@@ -63,8 +65,34 @@ export async function GET(request: Request): Promise<Response> {
             cursor = null;
           }
 
+          // Seek past backlog when idle (or first live seed) without replaying forever.
+          if (cursor === null && batch.tipEventId && batch.events.length === 0) {
+            cursor = batch.tipEventId;
+          }
+
+          if (batch.streamMode !== lastStreamMode) {
+            lastStreamMode = batch.streamMode;
+            send('mode', {
+              streamMode: batch.streamMode,
+              hasHistory: batch.hasHistory,
+              tipEventId: batch.tipEventId,
+              root: batch.root,
+            });
+          }
+
           if (batch.snapshot) {
-            send('session', { ...batch.snapshot, root: batch.root });
+            send('session', {
+              ...batch.snapshot,
+              root: batch.root,
+              streamMode: batch.streamMode,
+              hasHistory: batch.hasHistory,
+            });
+          } else if (batch.streamMode === 'idle') {
+            send('idle', {
+              hasHistory: batch.hasHistory,
+              tipEventId: batch.tipEventId,
+              root: batch.root,
+            });
           }
 
           for (const evt of batch.events) {
@@ -72,9 +100,24 @@ export async function GET(request: Request): Promise<Response> {
             cursor = evt.eventId;
           }
 
+          // After seeding a recent window, advance cursor to tip so we don't re-send.
+          if (
+            cursor === null &&
+            batch.tipEventId &&
+            batch.events.length > 0
+          ) {
+            cursor = batch.tipEventId;
+          } else if (batch.events.length > 0) {
+            cursor = batch.events.at(-1)!.eventId;
+          }
+
           ticks += 1;
           if (ticks % HEARTBEAT_EVERY === 0) {
-            send('heartbeat', { t: new Date().toISOString(), cursor });
+            send('heartbeat', {
+              t: new Date().toISOString(),
+              cursor,
+              streamMode: batch.streamMode,
+            });
           }
 
           await sleep(POLL_MS, request.signal);
@@ -113,37 +156,69 @@ export async function GET(request: Request): Promise<Response> {
 async function readBatch(
   sessionIdParam: string | null,
   after: string | null,
+  history: boolean,
 ): Promise<{
   root: string | null;
   snapshot: LiveSessionSnapshot | null;
   events: TelemetryEvent[];
+  streamMode: LiveStreamMode;
+  hasHistory: boolean;
+  tipEventId: string | null;
   error?: string;
 }> {
   let opened: ReturnType<typeof openDashboardStore>;
   try {
     opened = openDashboardStore();
   } catch {
-    return { root: null, snapshot: null, events: [], error: 'plane_busy' };
+    return {
+      root: null,
+      snapshot: null,
+      events: [],
+      streamMode: 'idle',
+      hasHistory: false,
+      tipEventId: null,
+      error: 'plane_busy',
+    };
   }
   if (!opened) {
-    return { root: null, snapshot: null, events: [], error: 'uninitialized' };
+    return {
+      root: null,
+      snapshot: null,
+      events: [],
+      streamMode: 'idle',
+      hasHistory: false,
+      tipEventId: null,
+      error: 'uninitialized',
+    };
   }
   const { store, root } = opened;
   try {
-    const resolved = await resolveLiveSession(store, sessionIdParam);
-    if (!resolved) {
-      return { root, snapshot: null, events: [], error: 'session_not_found' };
-    }
-    const snapshot = toSessionSnapshot(resolved.session, resolved.agent);
-    const events = await loadTelemetryBatch(
+    const batch = await readLiveEventsBatch(
       store,
-      resolved.session.id,
+      root,
+      sessionIdParam,
       after,
-      resolved.session.securityState,
+      history,
     );
-    return { root, snapshot, events };
+    return {
+      root: batch.root,
+      snapshot: batch.session,
+      events: batch.events,
+      streamMode: batch.streamMode,
+      hasHistory: batch.hasHistory,
+      tipEventId: batch.tipEventId,
+      ...(batch.error ? { error: batch.error } : {}),
+    };
   } catch {
-    return { root, snapshot: null, events: [], error: 'plane_busy' };
+    return {
+      root,
+      snapshot: null,
+      events: [],
+      streamMode: 'idle',
+      hasHistory: false,
+      tipEventId: null,
+      error: 'plane_busy',
+    };
   } finally {
     try {
       store.close();

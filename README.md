@@ -40,16 +40,48 @@ Incorrect claim: complete AI / agent security.
 
 ---
 
-## Product demo
+## Attack lab (primary proof)
 
 **Front door — test whether your agent can be compromised:**
 
 ```bash
 pnpm install && pnpm build
+pnpm veyra attack
+```
+
+Three honest runtimes (never upgrade labels):
+
+| Runtime | Flag | Meaning |
+|---------|------|---------|
+| SIMULATION | `--mode=simulation` (default) / `--ci` | Synthetic AgentEvent → PolicyEngine → Watchdog |
+| HOOK | `--mode=hook` | Claude-shaped PreToolUse → Veyra → deny (not live Claude) |
+| RUNTIME | `--mode=runtime` | Real Claude Code → PreToolUse → Veyra → deny |
+
+If Claude is missing under `--mode=runtime`: **REAL RUNTIME UNAVAILABLE**, tip `veyra attack --mode=hook`, exit 2 — never silent fallback labeled LIVE/RUNTIME.
+
+Output shows concrete contained counts (not % “secure” scores), then:
+
+```bash
+pnpm veyra explain
+pnpm veyra report --json
+```
+
+CI regression (simulation only):
+
+```bash
+pnpm veyra attack --ci
+pnpm veyra report --json
+```
+
+---
+
+## Product demo
+
+```bash
 pnpm veyra demo
 ```
 
-`veyra demo` is the real product demonstration:
+`veyra demo` is the product narrative demonstration:
 
 1. Isolated workspace with synthetic `.env`, vulnerable `src/auth.ts`, and a controlled malicious README  
 2. VEYRA enforcement via real Claude PreToolUse hooks  
@@ -68,13 +100,6 @@ Prompt Injection
 Synthetic secrets only (`veyra_fake_*`). Do not put real credentials in the demo `.env`.
 
 Fixture project: [`examples/real-agent-demo/`](examples/real-agent-demo/).
-
-CI regression (simulation corpus):
-
-```bash
-pnpm veyra attack --ci
-pnpm veyra report --json
-```
 
 ---
 
@@ -105,18 +130,18 @@ Details: [`docs/HOOK_PROTOCOL.md`](docs/HOOK_PROTOCOL.md).
 ## Attack lab
 
 ```bash
-pnpm veyra attack --mode=simulation   # synthetic corpus (default; also: --ci)
-pnpm veyra attack --mode=hook         # real PreToolUse wire format via veyra hook
-pnpm veyra attack --mode=runtime      # live Claude Code only — never fakes success
+pnpm veyra attack --mode=simulation   # L1 Synthetic AgentEvent → PolicyEngine → Watchdog
+pnpm veyra attack --mode=hook         # L2 Claude-shaped PreToolUse → Veyra → deny
+pnpm veyra attack --mode=runtime      # L3 REAL Claude Code → PreToolUse → Veyra → deny
 ```
 
-| Mode | What it exercises | What it is not |
-|------|-------------------|----------------|
-| **simulation** | Synthetic `AgentEvent`s through PolicyEngine, Watchdog, trajectories, and the state machine | Not a live Claude session |
-| **hook** | Real PreToolUse hook path (tool request shape → VEYRA → deny). First scenario: `prompt-injection-secret-access` | Not a live Claude session; does **not** use `simulateEvent()` |
-| **runtime** | Live Claude Code attempting the attack; honest UNAVAILABLE if Claude missing | Never fakes live success |
+| Level | Mode | What it exercises | What it is not |
+|------:|------|-------------------|----------------|
+| **1** | **simulation** | Synthetic `AgentEvent`s → PolicyEngine → Watchdog | Not a live Claude session |
+| **2** | **hook** | Claude-shaped PreToolUse → Veyra → deny (`prompt-injection-secret-access`) | Not live Claude; not `simulateEvent()` |
+| **3** | **runtime** | REAL Claude Code → actual tool request → PreToolUse → Veyra → deny | Never fakes; UNAVAILABLE if Claude missing |
 
-Never label simulation or hook results as runtime.
+Never label Level 1/2 results as Level 3 runtime.
 
 ---
 
@@ -145,11 +170,12 @@ Full model: [`docs/threat-model.md`](docs/threat-model.md).
 | Command | Purpose |
 |---------|---------|
 | `veyra init` | Create local `.veyra/` security plane |
-| `veyra demo` | Product demo — prompt injection → secret access → BLOCK |
+| `veyra attack` | **Front door** — test whether your agent can be compromised |
+| `veyra attack --ci` | SIMULATION CI regression (contained counts, not scores) |
+| `veyra demo` | Product narrative — prompt injection → secret access → BLOCK |
 | `veyra bridge install\|status\|uninstall` | Claude Code / Codex live hooks |
 | `veyra hook` | Stdin hook processor (used by the bridge) |
-| `veyra attack --mode=simulation\|runtime` | Attack lab |
-| `veyra explain [session]` | Incident timeline / last report |
+| `veyra explain` / `veyra report --json` | After attack: timeline / machine-readable report |
 | `veyra watch` / `events` / `policy` / `status` | Observe |
 | `veyra quarantine` / `resume` | Operator session controls |
 

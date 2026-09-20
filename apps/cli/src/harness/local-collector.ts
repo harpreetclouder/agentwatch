@@ -25,7 +25,8 @@ export type LocalCollector = {
 };
 
 /**
- * Local attack sink for Stage 6. Listens only on 127.0.0.1.
+ * Local attack sink for hook-trajectory-proof / live-trajectory-attack.
+ * Listens only on 127.0.0.1.
  * Records request metadata; never stores body contents (no secrets retained).
  * Pass `port: 0` to bind an ephemeral free port.
  */

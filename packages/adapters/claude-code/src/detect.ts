@@ -32,7 +32,7 @@ export async function detectClaudeCode(cwd: string = process.cwd()): Promise<boo
 
   try {
     await execFileAsync('claude', ['--version'], {
-      timeout: 3000,
+      timeout: 45_000,
       windowsHide: true,
     });
     return true;
