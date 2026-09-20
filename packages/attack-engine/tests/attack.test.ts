@@ -20,8 +20,10 @@ describe('attack corpus', () => {
     expect(listAttacks()).toHaveLength(10);
   });
 
-  it('marks prompt-injection-secret-access as runtime-capable', () => {
+  it('marks prompt-injection-secret-access as hook/runtime-capable', () => {
+    const hook = listAttacks('hook');
     const runtime = listAttacks('runtime');
+    expect(hook).toHaveLength(1);
     expect(runtime).toHaveLength(1);
     expect(runtime[0]?.id).toBe('prompt-injection-secret-access');
     expect(runtime[0]?.expectedPolicy).toBe('SECRET_ACCESS');

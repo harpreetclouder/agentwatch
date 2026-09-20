@@ -6,7 +6,11 @@ const SECURITY_PLANE_BASENAMES = new Set([
   'config.json',
 ]);
 
-/** Primary plane `.veyra`; legacy `.jev` kept for leftover dirs during rebrand. */
+/**
+ * Primary plane `.veyra`.
+ * Legacy `.jev` is backward-compat only (leftover dirs from JEV→VEYRA rebrand);
+ * active writers use `.veyra` exclusively. See docs/BACK_COMPAT_JEV.md.
+ */
 const SECURITY_PLANE_SEGMENTS = new Set(['.veyra', '.jev']);
 
 function hasSecurityPlaneSegment(segments: string[]): boolean {
@@ -16,6 +20,10 @@ function hasSecurityPlaneSegment(segments: string[]): boolean {
 /**
  * Detect access/modification of the VEYRA security control plane.
  * Uses path segments / containment — never substring authorization.
+ *
+ * Scope: user-space hooks only — not OS filesystem isolation. An agent that
+ * bypasses the hook bridge is outside this control; plane tampering still
+ * escalates to CRITICAL + QUARANTINE when observed through the runtime path.
  */
 export function classifySecurityPlanePath(
   pathValue: string,

@@ -13,7 +13,8 @@ import { printBanner } from '../ui.js';
 import { ensureLocalStore } from '../store.js';
 import {
   printRuntimeAttackResult,
-  runRuntimeAttackById,
+  runHookAttackById,
+  runLiveRuntimeAttackById,
 } from '../harness/runtime-attack.js';
 
 function shortId(id: string): string {
@@ -40,21 +41,26 @@ function flagValue(args: string[], name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Resolve lab mode. Distinct: simulation | hook | runtime.
+ * `--ci` defaults to simulation (regression corpus).
+ */
 function resolveMode(args: string[]): AttackMode {
-  if (
-    hasFlag(args, '--runtime') ||
-    flagValue(args, '--mode') === 'runtime'
-  ) {
+  const explicit = flagValue(args, '--mode')?.toLowerCase();
+  if (explicit === 'runtime' || hasFlag(args, '--runtime')) {
     return 'runtime';
   }
+  if (explicit === 'hook' || hasFlag(args, '--hook')) {
+    return 'hook';
+  }
   if (
+    explicit === 'simulation' ||
+    explicit === 'sim' ||
     hasFlag(args, '--simulation') ||
-    flagValue(args, '--mode') === 'simulation' ||
-    flagValue(args, '--mode') === 'sim'
+    hasFlag(args, '--ci')
   ) {
     return 'simulation';
   }
-  // Default: simulation (policy corpus)
   return 'simulation';
 }
 
@@ -62,6 +68,7 @@ export async function cmdAttack(args: string[]): Promise<number> {
   printBanner();
   const cleaned = args.filter((a) => a !== '--');
   const mode = resolveMode(cleaned);
+  const ci = hasFlag(cleaned, '--ci');
 
   if (hasFlag(cleaned, '--list') || hasFlag(cleaned, '-l')) {
     console.log(`Attack corpus (${mode}):`);
@@ -69,7 +76,7 @@ export async function cmdAttack(args: string[]): Promise<number> {
     for (const attack of listAttacks(mode)) {
       const flags = [
         attack.simulationSupported ? 'sim' : null,
-        attack.runtimeSupported ? 'runtime' : null,
+        attack.runtimeSupported ? 'hook+runtime' : null,
       ]
         .filter(Boolean)
         .join('+');
@@ -85,32 +92,34 @@ export async function cmdAttack(args: string[]): Promise<number> {
     console.log(`Total: ${listAttacks(mode).length}`);
     console.log('');
     console.log(
-      'Run: veyra attack --mode=simulation|runtime [--id=<attack-id>]',
+      'Run: veyra attack --mode=simulation|hook|runtime [--id=<attack-id>]',
     );
-    console.log('     veyra attack --simulation | --runtime');
+    console.log('     veyra attack --ci                 # simulation, CI exit codes');
     console.log('');
     return 0;
   }
 
+  if (mode === 'hook') {
+    return runHookMode(cleaned);
+  }
   if (mode === 'runtime') {
-    return runRuntimeMode(cleaned);
+    return runLiveRuntimeMode(cleaned);
   }
 
-  return runSimulationMode(cleaned);
+  return runSimulationMode(cleaned, { ci });
 }
 
-async function runRuntimeMode(args: string[]): Promise<number> {
-  const id =
-    flagValue(args, '--id') ?? 'prompt-injection-secret-access';
+async function runHookMode(args: string[]): Promise<number> {
+  const id = flagValue(args, '--id') ?? 'prompt-injection-secret-access';
   const attack = getAttack(id);
   if (!attack?.runtimeSupported) {
-    console.error(`Attack "${id}" is not runtime-supported.`);
-    console.error('Use: veyra attack --mode=runtime --list');
+    console.error(`Attack "${id}" is not hook-supported.`);
+    console.error('Use: veyra attack --mode=hook --list');
     return 1;
   }
 
   try {
-    const result = await runRuntimeAttackById(attack.id);
+    const result = await runHookAttackById(attack.id);
     printRuntimeAttackResult(result);
     return result.contained ? 0 : 1;
   } catch (err) {
@@ -119,11 +128,36 @@ async function runRuntimeMode(args: string[]): Promise<number> {
   }
 }
 
-async function runSimulationMode(args: string[]): Promise<number> {
+async function runLiveRuntimeMode(args: string[]): Promise<number> {
+  const id = flagValue(args, '--id') ?? 'prompt-injection-secret-access';
+  const attack = getAttack(id);
+  if (!attack?.runtimeSupported) {
+    console.error(`Attack "${id}" is not runtime-supported.`);
+    console.error('Use: veyra attack --mode=runtime --list');
+    return 1;
+  }
+
+  try {
+    const result = await runLiveRuntimeAttackById(attack.id);
+    printRuntimeAttackResult(result);
+    if (result.unavailableReason) {
+      return 2;
+    }
+    return result.contained ? 0 : 1;
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    return 1;
+  }
+}
+
+async function runSimulationMode(
+  args: string[],
+  options: { ci?: boolean } = {},
+): Promise<number> {
   console.log('VEYRA ATTACK LAB');
   console.log('');
   console.log('Mode:');
-  console.log('SIMULATION');
+  console.log(options.ci ? 'SIMULATION (CI)' : 'SIMULATION');
   console.log('');
 
   const id = flagValue(args, '--id');
@@ -165,6 +199,9 @@ async function runSimulationMode(args: string[]): Promise<number> {
     console.log('RESULT:');
     console.log('');
     console.log(
+      `  contained: ${summary.containedCount}  not-contained: ${summary.totalCount - summary.containedCount}  total: ${summary.totalCount}`,
+    );
+    console.log(
       `  ${summary.containedCount}/${summary.totalCount} controlled attack scenarios contained.`,
     );
     console.log('');
@@ -172,7 +209,7 @@ async function runSimulationMode(args: string[]): Promise<number> {
     console.log('');
 
     const primary = report.violations[0];
-    if (primary) {
+    if (primary && !options.ci) {
       console.log('------------------------------------------');
       console.log('');
       console.log('TASK');
@@ -201,10 +238,13 @@ async function runSimulationMode(args: string[]): Promise<number> {
 
     saveLastReport(rootDir, report);
 
-    console.log('View report:');
-    console.log('');
-    console.log('  veyra explain');
-    console.log('');
+    if (!options.ci) {
+      console.log('View report:');
+      console.log('');
+      console.log('  veyra report');
+      console.log('  veyra report --json');
+      console.log('');
+    }
 
     return summary.containedCount === summary.totalCount ? 0 : 1;
   } finally {

@@ -16,14 +16,15 @@ export type AttackCategory =
   | 'authority-escalation'
   | 'control-plane-tampering';
 
-export type AttackMode = 'simulation' | 'runtime';
+export type AttackMode = 'simulation' | 'hook' | 'runtime';
 
 export type DecisionOutcome = SecurityDecision['decision'];
 
 /**
- * Stage 7 attack definition — shared metadata for simulation and runtime labs.
+ * Attack definition — shared metadata for simulation, hook, and runtime labs.
  * Simulation uses `execute()` + simulateEvent.
- * Runtime uses real hooks and must never call simulateEvent().
+ * Hook uses real PreToolUse wire format via `veyra hook` (never simulateEvent).
+ * Runtime uses live Claude Code (never fakes success; never simulateEvent).
  */
 export interface Attack {
   id: string;
@@ -35,6 +36,7 @@ export interface Attack {
   expectedDecision: DecisionOutcome;
   expectedFinalState: SecurityState;
   simulationSupported: boolean;
+  /** Real PreToolUse hook path and/or live Claude runtime. */
   runtimeSupported: boolean;
   /** Simulation path only — synthetic AgentEvents through Watchdog. */
   execute(context: AttackContext): Promise<AttackResult>;
@@ -82,6 +84,10 @@ export interface SecurityReport {
   sessionId: string;
   task: string;
   finalState: string;
+  /** Concrete containment counts — never percentage "security scores". */
+  containedCount: number;
+  escapedCount: number;
+  totalCount: number;
   violations: Array<{
     event: string;
     decision: string;
@@ -104,7 +110,7 @@ export interface SecurityReport {
   summaryLine: string;
 }
 
-/** Checklist line for Stage 7 runtime / simulation operator output. */
+/** Checklist line for hook / runtime operator output. */
 export type AttackCheck = {
   label: string;
   ok: boolean;
@@ -115,7 +121,8 @@ export type RuntimeAttackResult = {
   name: string;
   scenario: string;
   agent: string;
-  mode: 'runtime';
+  /** Distinct from simulation: hook = PreToolUse wire; runtime = live Claude. */
+  mode: 'hook' | 'runtime';
   contained: boolean;
   checks: AttackCheck[];
   expectedPolicy: string;
@@ -126,4 +133,6 @@ export type RuntimeAttackResult = {
   observedFinalState: string | null;
   evidenceRecorded: boolean;
   disclaimer: string;
+  /** Set when live Claude path was not executed. */
+  unavailableReason?: string | null;
 };

@@ -11,6 +11,7 @@ import { cmdBridge } from './commands/bridge.js';
 import { cmdHook } from './commands/hook.js';
 import { cmdQuarantine, cmdResume } from './commands/enforcement.js';
 import { cmdDemo } from './commands/demo.js';
+import { cmdReport } from './commands/report.js';
 
 export async function runCli(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -55,6 +56,8 @@ export async function runCli(argv: string[]): Promise<number> {
       return cmdHook(rest);
     case 'demo':
       return cmdDemo(rest);
+    case 'report':
+      return cmdReport(rest);
     case 'quarantine':
       return cmdQuarantine(rest);
     case 'resume':

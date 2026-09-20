@@ -1,34 +1,31 @@
-# Real local enforcement — status
+# Real local enforcement — plan
 
 User-space hooks (Claude Code / Codex PreToolUse) → `veyra hook` → Watchdog → PolicyEngine → deny/quarantine.  
 Not an OS sandbox. A jailbreak must never become authority.
 
-**Milestone:** [PRESENTATION READY](MILESTONE_GATES.md) (Stages 0–10 gates YES)
+**Active milestone track:** Stages A–J — **complete**.
 
-## Stages 0–10 complete
+## Stage status
 
-| Stage | Gate |
-|-------|------|
-| 0 | Build clean |
-| 1 | Security tests pass |
-| 2 | Real hook works |
-| 3 | Real `.env` blocked |
-| 4 | Real-time event stream |
-| 5 | LIVE dashboard |
-| 6 | Trajectory + quarantine |
-| 7 | Runtime attack lab |
-| 8 | One-command demo |
-| 9 | Regression safe |
-| 10 | Presentation ready |
+| Stage | Focus | Status |
+|-------|--------|--------|
+| **A** | Repository consistency + baseline | **YES** |
+| **B** | Security boundary hardening | **YES** |
+| **C** | Real Claude runtime enforcement | **YES** (live test passed) |
+| **D** | Real indirect prompt injection | **YES** |
+| **E** | Real-time security telemetry | **YES** |
+| **F** | Security dashboard LIVE | **YES** |
+| **G** | Multi-step attack trajectory | **YES** |
+| **H** | Runtime Attack Lab (sim/hook/runtime) | **YES** |
+| **I** | Security report + counts | **YES** |
+| **J** | One-command DX + CI | **YES** |
 
-Full flowchart: [`MILESTONE_GATES.md`](MILESTONE_GATES.md).
+## Honest claims
 
-## Remaining (later — do not start until requested)
-
-1. Passport / Visa issuance (runtime)  
-2. External enforcement daemon / sandbox / network gateway  
-3. Cloud / multi-tenant control plane  
+- Success claim allowed when live Claude path exercised: blocked unauthorized tool before execution.
+- Hook-protocol and simulation results must **not** be labeled as live runtime.
+- Remaining `jev` strings are intentional only — [`BACK_COMPAT_JEV.md`](BACK_COMPAT_JEV.md).
 
 ## Out of scope until asked
 
-Cloud infra, enterprise analytics, billing, user management, new policy packs  
+Passport / Visa issuance, external daemon / OS sandbox / network gateway, cloud / multi-tenant control plane, billing, enterprise analytics

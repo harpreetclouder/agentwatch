@@ -8,8 +8,11 @@ coverage
 .env.*
 !.env.example
 !examples/real-agent-demo/.env
+# Active plane is .veyra; .jev kept so leftover rebrand dirs stay ignored (compat only)
 .jev/
 .veyra/
+# Historical Claude settings backups from JEV→VEYRA rebrand tooling (not fixtures)
+*.jev-backup*
 *.tsbuildinfo
 .pnpm-store
 .superpowers/

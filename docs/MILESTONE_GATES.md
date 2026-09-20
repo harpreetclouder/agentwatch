@@ -1,100 +1,54 @@
-# Milestone gates
+# Milestone gates (Stages A–J)
 
-Official product milestone checklist. Each gate must pass before the next stage.
+Official gap-closure checklist. Complete and verify each stage before the next.
 
 ```
-STAGE 0
+STAGE A  Repository consistency + baseline
    ↓
-BUILD CLEAN?
+STAGE B  Security boundary hardening
    ↓
-YES
+STAGE C  Real Claude runtime enforcement
    ↓
-STAGE 1
+STAGE D  Real indirect prompt injection
    ↓
-SECURITY TESTS PASS?
+STAGE E  Real-time security telemetry
    ↓
-YES
+STAGE F  Security dashboard
    ↓
-STAGE 2
+STAGE G  Multi-step attack trajectory
    ↓
-REAL HOOK WORKS?
+STAGE H  Runtime Attack Lab
    ↓
-YES
+STAGE I  Security report + CI
    ↓
-STAGE 3
-   ↓
-REAL .ENV BLOCKED?
-   ↓
-YES
-   ↓
-STAGE 4
-   ↓
-REAL-TIME EVENT STREAM?
-   ↓
-YES
-   ↓
-STAGE 5
-   ↓
-LIVE DASHBOARD?
-   ↓
-YES
-   ↓
-STAGE 6
-   ↓
-TRAJECTORY + QUARANTINE?
-   ↓
-YES
-   ↓
-STAGE 7
-   ↓
-RUNTIME ATTACK LAB?
-   ↓
-YES
-   ↓
-STAGE 8
-   ↓
-ONE COMMAND DEMO?
-   ↓
-YES
-   ↓
-STAGE 9
-   ↓
-REGRESSION SAFE?
-   ↓
-YES
-   ↓
-STAGE 10
-   ↓
-PRESENTATION READY
+STAGE J  One-command developer experience
 ```
 
 ## Gate status
 
 | Stage | Gate | Status |
 |-------|------|--------|
-| 0 | Build clean (`typecheck` / `lint` / `build`) | YES |
-| 1 | Security tests pass (PolicyEngine / unit) | YES |
-| 2 | Real hook works (PreToolUse → `veyra hook`) | YES |
-| 3 | Real `.env` blocked before execution | YES |
-| 4 | Real-time event stream | YES |
-| 5 | LIVE dashboard | YES |
-| 6 | Trajectory + quarantine | YES |
-| 7 | Runtime attack lab (`--mode=runtime`) | YES |
-| 8 | One-command demo (`veyra demo`) | YES |
-| 9 | Regression safe (L1/L2 + CI; optional L3) | YES |
-| 10 | Presentation ready (honest product docs) | YES |
+| A | VEYRA naming consistent; typecheck/lint/test/build clean | **YES** |
+| B | Path auth centralized; plane tamper CRITICAL; redaction; quarantine persists | **YES** |
+| C | Real Claude PreToolUse → deny before execute | **YES** (VEYRA_RUNTIME_TESTS=1 passed) |
+| D | Real indirect injection demo (synthetic secrets) | **YES** |
+| E | Real-time event stream | **YES** |
+| F | LIVE security dashboard | **YES** |
+| G | Trajectory + quarantine across steps | **YES** |
+| H | Attack lab simulation \| hook \| runtime | **YES** |
+| I | `veyra report` + concrete counts | **YES** |
+| J | `veyra demo` / `veyra attack --ci` DX | **YES** |
 
-**Milestone:** PRESENTATION READY
+**Current:** Stages A–J **YES**.
 
-## How to re-verify
+## Re-verify
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm test && pnpm build   # 0–1, 9
-pnpm veyra bridge status                                  # 2
-pnpm veyra demo                                           # 3, 8
-pnpm veyra attack --mode=runtime                          # 7
-# LIVE: pnpm --filter @veyra/dashboard dev → /live        # 4–5
-# Stage 6: veyra demo --mode=stage6                       # 6
+pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build
+pnpm veyra attack --ci
+pnpm veyra report --json
+# Optional live Claude:
+VEYRA_RUNTIME_TESTS=1 pnpm --filter veyra exec vitest run tests/stage9-runtime.test.ts
 ```
 
-See [`REAL_ENFORCEMENT_PLAN.md`](REAL_ENFORCEMENT_PLAN.md) and [`WORK_PROGRESS.md`](WORK_PROGRESS.md).
+See [`REAL_ENFORCEMENT_PLAN.md`](REAL_ENFORCEMENT_PLAN.md), [`BACK_COMPAT_JEV.md`](BACK_COMPAT_JEV.md), [`WORK_PROGRESS.md`](WORK_PROGRESS.md).

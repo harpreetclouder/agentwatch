@@ -5,13 +5,14 @@ import {
 } from './prompt-injection-secrets.js';
 import { corpusAttacks } from './corpus.js';
 
-/** Full attack corpus (simulation + runtime-capable definitions). */
+/** Full attack corpus (simulation + hook/runtime-capable definitions). */
 export function listAttacks(mode?: AttackMode): Attack[] {
   const all = [promptInjectionSecretsAttack, ...corpusAttacks];
   if (!mode) return all;
   if (mode === 'simulation') {
     return all.filter((a) => a.simulationSupported);
   }
+  // hook + runtime share the runtimeSupported flag (distinct runners)
   return all.filter((a) => a.runtimeSupported);
 }
 

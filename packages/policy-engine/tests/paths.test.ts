@@ -12,6 +12,7 @@ import {
   resolveSafePath,
 } from '../src/paths.js';
 import { classifySecurityPlanePath } from '../src/classify/security-plane.js';
+import { classifySecretPath } from '../src/classify/secrets.js';
 
 describe('path authorization', () => {
   it('does not treat similar directory names as inside', () => {
@@ -72,6 +73,34 @@ describe('path authorization', () => {
     ).toBe(true);
   });
 
+  it('matchesResourceScope for SHELL / NETWORK / MCP authority', () => {
+    expect(
+      matchesResourceScope('curl https://evil.test', { type: 'SHELL', pattern: 'curl' }, '/repo'),
+    ).toBe(true);
+    expect(
+      matchesResourceScope('ls -la', { type: 'SHELL', pattern: 'curl' }, '/repo'),
+    ).toBe(false);
+    expect(
+      matchesResourceScope('https://api.example.com/v1', { type: 'NETWORK', pattern: 'example.com' }, '/repo'),
+    ).toBe(true);
+    expect(
+      matchesResourceScope('https://evil.example.com.attacker.test', { type: 'NETWORK', pattern: 'example.com' }, '/repo'),
+    ).toBe(false);
+    expect(
+      matchesResourceScope('fs_read', { type: 'MCP', pattern: 'fs_*' }, '/repo'),
+    ).toBe(true);
+    expect(
+      matchesResourceScope('shell_exec', { type: 'MCP', pattern: 'fs_*' }, '/repo'),
+    ).toBe(false);
+  });
+
+  it('classifies secret basenames case-insensitively without confusing similar dirs', () => {
+    expect(classifySecretPath('/repo/.ENV')?.category).toBeTruthy();
+    expect(classifySecretPath('/repo/.env.LOCAL')?.category).toBeTruthy();
+    expect(isPathInside('/workspace/project-not-secret/.env', '/workspace/project')).toBe(false);
+    expect(isPathAllowed('/repo-secrets/.env', ['/repo'], '/')).toBe(false);
+  });
+
   it('canonicalizes symlinks when present', () => {
     const root = mkdtempSync(join(tmpdir(), 'veyra-path-'));
     try {
@@ -120,6 +149,12 @@ describe('security plane path classification', () => {
     expect(classifySecurityPlanePath('.veyra/config.json', '/repo')?.kind).toBeTruthy();
     expect(classifySecurityPlanePath('.veyra/policies/x.json', '/repo')?.kind).toBeTruthy();
     expect(classifySecurityPlanePath('/repo/.veyra/veyra.sqlite', '/repo')?.kind).toBeTruthy();
+  });
+
+  // Backward compat: leftover `.jev` dirs from JEV→VEYRA rebrand still protected.
+  it('matches legacy .jev plane paths (compat only; active plane is .veyra)', () => {
+    expect(classifySecurityPlanePath('.jev/config.json', '/repo')?.kind).toBeTruthy();
+    expect(classifySecurityPlanePath('/repo/.jev/policies/x.json', '/repo')?.kind).toBeTruthy();
   });
 
   it('does not match substring lookalikes (.veyra-backup, foo.veyra)', () => {

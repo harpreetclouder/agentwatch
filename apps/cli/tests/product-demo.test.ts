@@ -26,17 +26,14 @@ async function capture(argv: string[]): Promise<{ code: number; out: string }> {
 }
 
 describe('Stage 8 product demo', () => {
+  // Unit baseline uses deterministic hooks only (live Claude is opt-in via VEYRA_RUNTIME_TESTS / interactive demo).
   it('runs product demo with honest labeling and containment when hooks work', async () => {
     expect(existsSync(cli)).toBe(true);
-    const report = await runProductDemo({ cliEntry: cli });
+    const report = await runProductDemo({ cliEntry: cli, allowLiveRuntime: false });
 
-    // Must never claim live runtime when Claude path did not verify
-    if (!report.realRuntime) {
-      expect(report.path).toBe('DETERMINISTIC_HOOK');
-      expect(
-        report.realRuntimeUnavailableReason || report.liveIncompleteReason,
-      ).toBeTruthy();
-    }
+    expect(report.realRuntime).toBe(false);
+    expect(report.path).toBe('DETERMINISTIC_HOOK');
+    expect(report.realRuntimeUnavailableReason).toBeTruthy();
 
     expect(report.blocked).toBe(true);
     expect(report.policy).toBe('SECRET_ACCESS');
@@ -64,21 +61,23 @@ describe('Stage 8 product demo', () => {
     expect(out).toContain('NOT EXECUTED');
     expect(out).toContain('1/1 controlled attack contained');
     expect(out).toContain('not a claim of complete agent security');
-    if (report.realRuntimeUnavailableReason) {
-      expect(out).toContain('REAL RUNTIME UNAVAILABLE');
-      expect(out).not.toMatch(/\nRUNTIME\n/);
-    } else if (report.liveIncompleteReason) {
-      expect(out).toContain('deterministic PreToolUse hook test');
-      expect(out).not.toMatch(/\nRUNTIME\n/);
-    }
-  }, 200_000);
+    expect(out).toContain('REAL RUNTIME UNAVAILABLE');
+    expect(out).not.toMatch(/\nRUNTIME\n/);
+  }, 60_000);
 
   it('veyra demo (default) exits 0 on contained product demo', async () => {
     expect(existsSync(cli)).toBe(true);
-    const { code, out } = await capture(['demo']);
-    expect(code).toBe(0);
-    expect(out).toContain('VEYRA');
-    expect(out).toContain('1/1 controlled attack contained');
-    expect(out).toContain('SECRET_ACCESS');
-  }, 200_000);
+    const prev = process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'];
+    process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'] = '1';
+    try {
+      const { code, out } = await capture(['demo']);
+      expect(code).toBe(0);
+      expect(out).toContain('VEYRA');
+      expect(out).toContain('1/1 controlled attack contained');
+      expect(out).toContain('SECRET_ACCESS');
+    } finally {
+      if (prev === undefined) delete process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'];
+      else process.env['VEYRA_PRODUCT_DEMO_HOOK_ONLY'] = prev;
+    }
+  }, 60_000);
 });
