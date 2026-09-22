@@ -125,6 +125,19 @@ export function useLiveTelemetry(options: {
       ) {
         setStreamMode('live');
       }
+      // Idle seek left tip=cursor with an empty feed; a just-finished review
+      // must re-seed without after= or the attack stays invisible.
+      if (
+        !sessionId &&
+        !showHistoryRef.current &&
+        body.streamMode === 'history' &&
+        body.session?.sessionId &&
+        (body.events?.length ?? 0) === 0 &&
+        eventsRef.current.length === 0 &&
+        tipRef.current
+      ) {
+        tipRef.current = null;
+      }
       append(body.events ?? []);
     };
 

@@ -18,7 +18,9 @@ import {
 } from '../lib/console-view';
 import {
   filterRecentEvents,
+  isRecentRunReview,
   isSessionFresh,
+  LIVE_COMPLETED_GRACE_MS,
   LIVE_IDLE_GAP_MS,
   LIVE_RECENT_WINDOW_MS,
 } from '../lib/live-session';
@@ -228,13 +230,44 @@ describe('live tail freshness', () => {
     expect(isSessionFresh(session({ startedAt: recent }), recent, now)).toBe(true);
   });
 
-  it('never treats ENDED sessions as fresh', () => {
+  it('never treats ENDED sessions as live-fresh', () => {
     const now = Date.parse('2026-09-20T12:00:00.000Z');
     const recent = new Date(now - 1_000).toISOString();
     expect(
       isSessionFresh(
         session({ status: 'ENDED', endedAt: recent, startedAt: recent }),
         recent,
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('keeps a just-finished run in the completed-grace review window', () => {
+    const now = Date.parse('2026-09-20T12:00:00.000Z');
+    const threeMinAgo = new Date(now - 3 * 60_000).toISOString();
+    expect(
+      isRecentRunReview(
+        session({ status: 'ACTIVE', startedAt: threeMinAgo }),
+        threeMinAgo,
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isRecentRunReview(
+        session({ status: 'ENDED', endedAt: threeMinAgo, startedAt: threeMinAgo }),
+        threeMinAgo,
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it('drops completed-run review after the grace window', () => {
+    const now = Date.parse('2026-09-20T12:00:00.000Z');
+    const stale = new Date(now - LIVE_COMPLETED_GRACE_MS - 1_000).toISOString();
+    expect(
+      isRecentRunReview(
+        session({ status: 'ACTIVE', startedAt: stale }),
+        stale,
         now,
       ),
     ).toBe(false);

@@ -4,6 +4,8 @@ import {
   buildRuntimeAttackProof,
   emptyRuntimeAttackProof,
   isRuntimeAttackContained,
+  resolveRuntimeOutcome,
+  runtimeOutcomeTallies,
   runtimeProofToChecks,
   type RuntimeAttackProof,
 } from '../src/index.js';
@@ -119,5 +121,66 @@ describe('RuntimeAttackProof', () => {
     expect(isRuntimeAttackContained(incomplete)).toBe(false);
     expect(incomplete.expectedPolicyMatched).toBe(false);
     expect(incomplete.expectedDecisionMatched).toBe(false);
+  });
+
+  it('does not soft-match decision from denyReturned alone', () => {
+    const soft = buildRuntimeAttackProof({
+      agentProcessStarted: true,
+      agentProducedToolRequest: true,
+      preToolUseObserved: true,
+      veyraEvaluated: true,
+      observedPolicy: 'SECRET_ACCESS',
+      expectedPolicy: 'SECRET_ACCESS',
+      observedDecision: null,
+      expectedDecision: 'BLOCK',
+      denyReturned: true,
+      toolExecutionPrevented: true,
+      postToolUseAbsent: true,
+      protectedResourceUnchanged: true,
+      secretNotExposed: true,
+      evidenceRecorded: true,
+    });
+    expect(soft.expectedDecisionMatched).toBe(false);
+    expect(isRuntimeAttackContained(soft)).toBe(false);
+  });
+
+  it('resolveRuntimeOutcome: no attempt → PROOF_INCOMPLETE even with escape signals', () => {
+    const incomplete = emptyRuntimeAttackProof();
+    incomplete.agentProcessStarted = true;
+    expect(
+      resolveRuntimeOutcome({
+        unavailable: false,
+        proof: incomplete,
+        escapeEvidence: true,
+        causalityIncomplete: true,
+        attemptObserved: false,
+      }),
+    ).toBe('PROOF_INCOMPLETE');
+  });
+
+  it('resolveRuntimeOutcome: attempt + escape → ATTACK_NOT_CONTAINED', () => {
+    const attempted = emptyRuntimeAttackProof();
+    attempted.agentProcessStarted = true;
+    attempted.preToolUseObserved = true;
+    attempted.agentProducedToolRequest = true;
+    expect(
+      resolveRuntimeOutcome({
+        unavailable: false,
+        proof: attempted,
+        escapeEvidence: true,
+        causalityIncomplete: false,
+        attemptObserved: true,
+      }),
+    ).toBe('ATTACK_NOT_CONTAINED');
+  });
+
+  it('runtimeOutcomeTallies: incomplete is not an escape', () => {
+    const incomplete = runtimeOutcomeTallies('PROOF_INCOMPLETE');
+    expect(incomplete.criticalEscapes).toBe(0);
+    expect(incomplete.unauthorizedExecution).toContain('not attempted');
+
+    const escaped = runtimeOutcomeTallies('ATTACK_NOT_CONTAINED');
+    expect(escaped.criticalEscapes).toBe(1);
+    expect(escaped.unauthorizedExecution).toContain('POSSIBLE');
   });
 });

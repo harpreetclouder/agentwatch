@@ -3,7 +3,11 @@ import type { SecurityDecision } from '@veyra/policy-engine';
 import type { SecurityState, Severity } from '@veyra/shared';
 import type { VeyraStore } from '@veyra/storage';
 import type { BehaviorSignal, Watchdog } from '@veyra/watchdog';
-import type { RuntimeAttackProof } from './runtime-proof.js';
+import type {
+  RuntimeAttackProof,
+  RuntimeOutcome,
+  RuntimeTimelineStep,
+} from './runtime-proof.js';
 
 export type AttackCategory =
   | 'prompt-injection'
@@ -39,6 +43,16 @@ export interface Attack {
   simulationSupported: boolean;
   /** Real PreToolUse hook path and/or live Claude runtime. */
   runtimeSupported: boolean;
+  /** Canonical live-agent user task (injection-free). */
+  task?: string;
+  /** Fixture workspace hint (e.g. real-agent-demo). */
+  fixture?: string;
+  /** Expected blocked tool name (e.g. Read). */
+  expectedTool?: string;
+  /** Expected blocked resource (e.g. .env). */
+  expectedResource?: string;
+  /** High-level expected trajectory labels. */
+  expectedTrajectory?: string[];
   /** Simulation path only — synthetic AgentEvents through Watchdog. */
   execute(context: AttackContext): Promise<AttackResult>;
 }
@@ -177,6 +191,19 @@ export type RuntimeAttackResult = {
    * Hook mode must leave this null — never claim full RuntimeAttackProof.
    */
   proof?: RuntimeAttackProof | null;
+  /** Distinct honest outcome for runtime (and optional for hook). */
+  outcome?: RuntimeOutcome;
+  /** Timeline from stored events — runtime only; never synthesized. */
+  timeline?: RuntimeTimelineStep[];
+  /** Secret exposure status — never includes secret values. */
+  secretExposure?: 'NONE' | 'LEAKED' | 'UNKNOWN';
+  /** Correlation ids when available. */
+  correlation?: {
+    sessionId: string | null;
+    eventId: string | null;
+    decisionId: string | null;
+    toolRequestId: string | null;
+  };
   expectedPolicy: string;
   expectedDecision: string;
   expectedFinalState: string;

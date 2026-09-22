@@ -3,18 +3,18 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SqliteVeyraStore } from '@veyra/storage';
 import {
+  RUNTIME_OUTCOME_LABELS,
   emptyRuntimeAttackProof,
   formatRuntimeProofGateLines,
+  formatRuntimeTimelineLines,
   getAttack,
-  isRuntimeAttackContained,
+  runtimeOutcomeTallies,
   runtimeProofToChecks,
   type Attack,
   type AttackCheck,
-  type RuntimeAttackProof,
   type RuntimeAttackResult,
 } from '@veyra/attack-engine';
 import { parseDenyPayload } from '../commands/hook.js';
-import { runProductDemo } from './product-demo.js';
 import {
   createClaudeCodeRunner,
   type LiveAgentRunner,
@@ -24,6 +24,7 @@ import {
   runHookTrajectoryProof,
   runLiveTrajectoryAttack,
 } from './demo-proof.js';
+import { executeRuntimeAttack } from './runtime-executor.js';
 import {
   resolveCliEntry,
   runHookPreToolUse,
@@ -52,6 +53,15 @@ function unavailableRuntimeResult(
     contained: false,
     checks: runtimeProofToChecks(proof),
     proof,
+    outcome: 'RUNTIME_UNAVAILABLE',
+    timeline: [],
+    secretExposure: 'UNKNOWN',
+    correlation: {
+      sessionId: null,
+      eventId: null,
+      decisionId: null,
+      toolRequestId: null,
+    },
     expectedPolicy: attack.expectedPolicy,
     expectedDecision: attack.expectedDecision,
     expectedFinalState: attack.expectedFinalState,
@@ -108,7 +118,8 @@ export async function runRuntimeAttackById(
  * Level 3 live Claude runtime attack. Never fakes success.
  * Never falls back to hook/simulation and calls it runtime.
  * CONTAINED ⇔ RuntimeAttackProof every gate true and no unavailableReason.
- * Agent spawn goes through LiveAgentRunner (ClaudeCodeRunner).
+ * Architecture: RuntimeAttackExecutor → LiveAgentRunner → ClaudeCodeRunner → Claude.
+ * Does NOT call runProductDemo().
  */
 export async function runLiveRuntimeAttackById(
   attackId: string = 'prompt-injection-secret-access',
@@ -140,62 +151,15 @@ export async function runLiveRuntimeAttackById(
     });
   }
 
-  const avail = await runner.detect();
-  if (!avail.ok) {
-    const kind =
-      avail.reason === 'missing'
-        ? 'Claude Code CLI not installed/on PATH'
-        : avail.reason === 'timeout'
-          ? 'Claude Code CLI timed out during version check'
-          : 'Claude Code CLI probe failed';
-    return unavailableRuntimeResult(
-      attack,
-      `${kind}${avail.error ? ` (${avail.error})` : ''}`,
-    );
-  }
-
-  // liveOnly: never run deterministic hook fallback and label it runtime
-  const demo = await runProductDemo({
-    allowLiveRuntime: true,
-    liveOnly: true,
-    maxBudgetUsd: options.maxBudgetUsd ?? 1.5,
+  return executeRuntimeAttack({
+    attackId: attack.id,
     runner,
+    ...(options.maxBudgetUsd !== undefined
+      ? { maxBudgetUsd: options.maxBudgetUsd }
+      : {}),
     ...(options.workspace ? { workspace: options.workspace } : {}),
     ...(options.isolated !== undefined ? { isolated: options.isolated } : {}),
   });
-
-  if (!demo.realRuntime) {
-    const reason =
-      demo.realRuntimeUnavailableReason ??
-      demo.liveIncompleteReason ??
-      'Live Claude runtime was not executed';
-    return unavailableRuntimeResult(attack, reason);
-  }
-
-  const proof: RuntimeAttackProof = demo.proof ?? emptyRuntimeAttackProof();
-  // CONTAINED ⇔ every RuntimeAttackProof gate is true (never soft-pass incomplete live).
-  const contained = isRuntimeAttackContained(proof);
-  const checks = runtimeProofToChecks(proof);
-
-  return {
-    attackId: attack.id,
-    name: attack.name,
-    scenario: attack.name,
-    agent: demo.agent,
-    mode: 'runtime',
-    contained,
-    checks,
-    proof,
-    expectedPolicy: attack.expectedPolicy,
-    expectedDecision: attack.expectedDecision,
-    expectedFinalState: attack.expectedFinalState,
-    observedPolicy: demo.policy,
-    observedDecision: demo.decision,
-    observedFinalState: demo.finalState,
-    evidenceRecorded: proof.evidenceRecorded,
-    disclaimer: DISCLAIMER,
-    unavailableReason: null,
-  };
 }
 
 async function runLiveTrajectoryHook(
@@ -475,7 +439,10 @@ async function loadRuntimeEvidence(workspace: string): Promise<{
   }
 }
 
-export function printRuntimeAttackResult(result: RuntimeAttackResult): void {
+export function printRuntimeAttackResult(
+  result: RuntimeAttackResult,
+  options: { livePlaneRoot?: string } = {},
+): void {
   const runtimeLabel = result.unavailableReason
     ? 'RUNTIME (UNAVAILABLE)'
     : result.mode === 'hook'
@@ -509,6 +476,9 @@ export function printRuntimeAttackResult(result: RuntimeAttackResult): void {
       }
       console.log('');
     }
+    console.log('RESULT:');
+    console.log(RUNTIME_OUTCOME_LABELS.RUNTIME_UNAVAILABLE);
+    console.log('');
     console.log('0 / 1 CONTROLLED ATTACKS CONTAINED');
     console.log('Secret exposure: (not evaluated — runtime not executed)');
     console.log('Unauthorized execution: (not evaluated — runtime not executed)');
@@ -517,6 +487,9 @@ export function printRuntimeAttackResult(result: RuntimeAttackResult): void {
     console.log('Live Claude runtime was not executed — not claiming containment.');
     console.log('');
     printAttackLabFooter();
+    if (options.livePlaneRoot) {
+      printLiveWatchHint(options.livePlaneRoot, { phase: 'end' });
+    }
     return;
   }
 
@@ -524,6 +497,15 @@ export function printRuntimeAttackResult(result: RuntimeAttackResult): void {
   console.log('');
   console.log(`  ${result.contained ? '✓' : '✕'} ${result.scenario}`);
   console.log('');
+
+  if (result.mode === 'runtime' && result.timeline && result.timeline.length > 0) {
+    console.log('Timeline:');
+    console.log('');
+    for (const line of formatRuntimeTimelineLines(result.timeline)) {
+      console.log(`  ${line}`);
+    }
+    console.log('');
+  }
 
   if (result.mode === 'runtime' && result.proof) {
     console.log('RuntimeAttackProof:');
@@ -539,20 +521,48 @@ export function printRuntimeAttackResult(result: RuntimeAttackResult): void {
     console.log('');
   }
 
-  if (result.mode === 'runtime' && result.proof && !result.contained) {
-    console.log('PROOF INCOMPLETE — not contained');
+  if (result.secretExposure === 'LEAKED') {
+    console.log('SECRET EXPOSURE DETECTED');
     console.log('');
   }
 
+  const outcome =
+    result.outcome ??
+    (result.contained
+      ? 'CONTAINED'
+      : result.mode === 'runtime'
+        ? 'PROOF_INCOMPLETE'
+        : result.contained
+          ? 'CONTAINED'
+          : 'ATTACK_NOT_CONTAINED');
+
+  console.log('RESULT:');
+  console.log(RUNTIME_OUTCOME_LABELS[outcome]);
+  console.log('');
+
+  const tallies = runtimeOutcomeTallies(outcome);
   const containedCount = result.contained ? 1 : 0;
   console.log(`${containedCount} / 1 CONTROLLED ATTACKS CONTAINED`);
-  console.log(
-    `Secret exposure: ${result.contained ? 'NONE' : 'POSSIBLE — see checks'}`,
-  );
-  console.log(
-    `Unauthorized execution: ${result.contained ? 'NONE' : 'POSSIBLE — see checks'}`,
-  );
-  console.log(`Critical escapes: ${result.contained ? 0 : 1}`);
+
+  const secretLine =
+    result.secretExposure === 'LEAKED'
+      ? 'LEAKED'
+      : outcome === 'CONTAINED'
+        ? 'NONE'
+        : outcome === 'PROOF_INCOMPLETE' || outcome === 'RUNTIME_UNAVAILABLE'
+          ? result.secretExposure === 'NONE'
+            ? 'NONE'
+            : tallies.secretExposureHint
+          : result.secretExposure === 'NONE'
+            ? 'NONE'
+            : tallies.secretExposureHint;
+
+  console.log(`Secret exposure: ${secretLine}`);
+  console.log(`Unauthorized execution: ${tallies.unauthorizedExecution}`);
+  console.log(`Critical escapes: ${tallies.criticalEscapes}`);
   console.log('');
   printAttackLabFooter();
+  if (options.livePlaneRoot) {
+    printLiveWatchHint(options.livePlaneRoot, { phase: 'end' });
+  }
 }

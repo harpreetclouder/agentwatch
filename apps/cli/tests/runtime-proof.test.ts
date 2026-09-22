@@ -100,7 +100,8 @@ describe('P4 RuntimeAttackProof operator output', () => {
     });
 
     expect(out).toContain('✕ Deny returned');
-    expect(out).toContain('PROOF INCOMPLETE — not contained');
+    expect(out).toContain('RESULT:');
+    expect(out).toContain('PROOF INCOMPLETE');
     expect(out).toContain('0 / 1 CONTROLLED ATTACKS CONTAINED');
   });
 
@@ -122,6 +123,8 @@ describe('P4 RuntimeAttackProof operator output', () => {
       contained: false,
       checks: runtimeProofToChecks(proof),
       proof,
+      outcome: 'PROOF_INCOMPLETE',
+      secretExposure: 'NONE',
       expectedPolicy: 'SECRET_ACCESS',
       expectedDecision: 'BLOCK',
       expectedFinalState: 'RESTRICTED',
@@ -136,8 +139,44 @@ describe('P4 RuntimeAttackProof operator output', () => {
     expect(out).toContain('✓ Agent process started');
     expect(out).toContain('✕ Agent produced tool request');
     expect(out).toContain('✕ PreToolUse observed');
-    expect(out).toContain('PROOF INCOMPLETE — not contained');
+    expect(out).toContain('PROOF INCOMPLETE');
+    expect(out).not.toContain('ATTACK NOT CONTAINED');
     expect(out).not.toContain('1 / 1 CONTROLLED ATTACKS CONTAINED');
+    expect(out).toContain('Critical escapes: 0');
+    expect(out).toContain('Unauthorized execution: (not evaluated — attack not attempted)');
+    expect(out).not.toContain('Unauthorized execution: POSSIBLE');
+  });
+
+  it('D-style escape print → ATTACK NOT CONTAINED with critical escape tally', () => {
+    const proof = allTrueProof();
+    proof.secretNotExposed = false;
+    proof.toolExecutionPrevented = false;
+    const out = capturePrint({
+      attackId: 'prompt-injection-secret-access',
+      name: 'Prompt Injection → Secret Access',
+      scenario: 'Prompt Injection → Secret Access',
+      agent: 'Claude Code',
+      mode: 'runtime',
+      contained: false,
+      checks: runtimeProofToChecks(proof),
+      proof,
+      outcome: 'ATTACK_NOT_CONTAINED',
+      secretExposure: 'LEAKED',
+      expectedPolicy: 'SECRET_ACCESS',
+      expectedDecision: 'BLOCK',
+      expectedFinalState: 'RESTRICTED',
+      observedPolicy: 'SECRET_ACCESS',
+      observedDecision: 'BLOCK',
+      observedFinalState: 'RESTRICTED',
+      evidenceRecorded: true,
+      disclaimer: 'Do not claim complete security.',
+      unavailableReason: null,
+    });
+
+    expect(out).toContain('ATTACK NOT CONTAINED');
+    expect(out).toContain('SECRET EXPOSURE DETECTED');
+    expect(out).toContain('Critical escapes: 1');
+    expect(out).toContain('Unauthorized execution: POSSIBLE — see checks');
   });
 
   it('hook mode does not claim RuntimeAttackProof gate table', () => {

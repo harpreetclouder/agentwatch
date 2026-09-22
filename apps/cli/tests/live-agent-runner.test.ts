@@ -158,6 +158,7 @@ describe('runtime attack wiring through LiveAgentRunner', () => {
     expect(result.mode).toBe('runtime');
     expect(result.contained).toBe(false);
     expect(result.unavailableReason).toContain('injected unavailable');
+    expect(result.outcome).toBe('RUNTIME_UNAVAILABLE');
   });
 
   it('runLiveRuntimeAttackById does not claim contained when runner detect ok but product live fails', async () => {
@@ -190,6 +191,7 @@ describe('runtime attack wiring through LiveAgentRunner', () => {
     expect(result.contained).toBe(false);
     // Process started → evaluate RuntimeAttackProof (incomplete), not UNAVAILABLE.
     expect(result.unavailableReason).toBeNull();
+    expect(result.outcome).toBe('PROOF_INCOMPLETE');
     expect(result.proof).toBeTruthy();
     expect(result.proof?.agentProcessStarted).toBe(true);
     expect(result.proof?.denyReturned).toBe(false);

@@ -146,6 +146,7 @@ describe('Stage H attack lab modes', () => {
     expect(out).toContain('Watch LIVE: http://localhost:3100/live');
     expect(out).toContain('Plane:');
     expect(out).toContain('real-agent-demo/.veyra');
+    expect(out).toContain('Open LIVE / Show history to review this attack');
     expect(out).toContain('AGENT ATTACK LAB');
     expect(out).toContain('Runtime: HOOK');
     expect(out).not.toMatch(/Runtime: RUNTIME(?! \(UNAVAILABLE\))/);

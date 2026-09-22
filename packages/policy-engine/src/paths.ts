@@ -274,7 +274,28 @@ function networkHostname(target: string): string {
 }
 
 /**
+ * Argument keys that carry filesystem paths (Edit/Write/Read payloads).
+ * Content fields (old_string / new_string / etc.) must NOT be scanned — they
+ * often mention `.env` or `password` in comments and falsely trip SECRET_ACCESS.
+ */
+const PATH_ARG_KEYS = new Set([
+  'file_path',
+  'path',
+  'filename',
+  'target',
+  'cwd',
+  'directory',
+  'dir',
+  'working_directory',
+  'workdir',
+]);
+
+/** Shell / argv fields — tokenize for embedded path tokens (e.g. `cat .env`). */
+const COMMAND_ARG_KEYS = new Set(['command', 'cmd', 'script']);
+
+/**
  * Collect path-like strings from an event without shell execution.
+ * Never treats edit/write file *contents* as path candidates.
  */
 export function extractPathCandidates(event: AgentEvent): string[] {
   const out: string[] = [];
@@ -296,13 +317,16 @@ export function extractPathCandidates(event: AgentEvent): string[] {
       }
     }
   } else if (args && typeof args === 'object') {
-    for (const value of Object.values(args as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
+      const k = key.toLowerCase();
       if (typeof value === 'string') {
-        out.push(value);
-        if (/\s/.test(value)) {
+        if (PATH_ARG_KEYS.has(k)) {
+          out.push(value);
+        } else if (COMMAND_ARG_KEYS.has(k)) {
           out.push(...tokenizeCommand(value));
         }
-      } else if (Array.isArray(value)) {
+        // Skip content / prose fields (old_string, new_string, content, …).
+      } else if (Array.isArray(value) && PATH_ARG_KEYS.has(k)) {
         for (const item of value) {
           if (typeof item === 'string') {
             out.push(item);
@@ -319,7 +343,7 @@ function looksLikePath(value: string): boolean {
   if (value.length === 0 || value.length > 1024) {
     return false;
   }
-  if (value.includes('\0')) {
+  if (value.includes('\0') || value.includes('\n') || value.includes('\r')) {
     return false;
   }
   if (value.startsWith('-') && !value.startsWith('./') && !value.startsWith('../')) {

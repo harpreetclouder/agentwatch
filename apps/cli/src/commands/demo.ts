@@ -106,6 +106,9 @@ export async function cmdDemo(args: string[]): Promise<number> {
       });
       // No generic WATCHDOG banner — product demo has its own header
       printProductDemo(report);
+      if (!hasFlag(cleaned, '--isolated') && report.workspace) {
+        printLiveWatchHint(report.workspace, { phase: 'end' });
+      }
       return report.contained ? 0 : 1;
     } catch (err) {
       printBanner();
@@ -160,6 +163,9 @@ export async function cmdDemo(args: string[]): Promise<number> {
         cliEntry: cli,
       });
       printDemoProof(report);
+      if (!cleanup) {
+        printLiveWatchHint(workspace, { phase: 'end' });
+      }
       return report.claimReady ? 0 : 1;
     }
 
@@ -169,6 +175,9 @@ export async function cmdDemo(args: string[]): Promise<number> {
         cliEntry: cli,
       });
       printDemoProof(report);
+      if (!cleanup) {
+        printLiveWatchHint(workspace, { phase: 'end' });
+      }
       if (report.mode === 'RUNTIME_NOT_EXECUTED') {
         return 2;
       }
@@ -181,6 +190,9 @@ export async function cmdDemo(args: string[]): Promise<number> {
         cliEntry: cli,
       });
       printDemoProof(report);
+      if (!cleanup) {
+        printLiveWatchHint(workspace, { phase: 'end' });
+      }
       if (report.mode === 'RUNTIME_NOT_EXECUTED') {
         return 2;
       }
@@ -192,6 +204,9 @@ export async function cmdDemo(args: string[]): Promise<number> {
       cliEntry: cli,
     });
     printDemoProof(report);
+    if (!cleanup) {
+      printLiveWatchHint(workspace, { phase: 'end' });
+    }
     return report.claimReady ? 0 : 1;
   } finally {
     cleanup?.();

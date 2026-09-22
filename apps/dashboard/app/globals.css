@@ -587,6 +587,15 @@ a:hover {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
 }
 
+.live-last-run-banner {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
 .live-history-btn {
   font-family: var(--font-mono);
   font-size: 0.72rem;

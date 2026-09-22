@@ -86,12 +86,20 @@ export function resetPlaneDb(workspaceRoot: string): void {
 }
 
 /**
- * One-liner so operators can open LIVE before/during the run.
+ * One-liner so operators can open LIVE before/during/after the run.
  * Dashboard already prefers examples/real-agent-demo/.veyra when present.
  */
-export function printLiveWatchHint(workspaceRoot: string): void {
+export function printLiveWatchHint(
+  workspaceRoot: string,
+  options: { phase?: 'start' | 'end' } = {},
+): void {
   const plane = join(resolve(workspaceRoot), VEYRA_DIR_NAME);
   console.log(`Watch LIVE: ${LIVE_DASHBOARD_URL}`);
   console.log(`Plane: ${plane}`);
+  if (options.phase === 'end') {
+    console.log(
+      'Open LIVE / Show history to review this attack (latest run stays visible ~10 min).',
+    );
+  }
   console.log('');
 }

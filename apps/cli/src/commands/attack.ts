@@ -1,5 +1,5 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   buildSecurityReportFromRuntimeResult,
   formatExplainReport,
@@ -22,6 +22,7 @@ import {
   runHookAttackById,
   runLiveRuntimeAttackById,
 } from '../harness/runtime-attack.js';
+import { resolveWatchableDemoRoot } from '../harness/watchable-plane.js';
 
 const SECRET_CATEGORIES = new Set([
   'credential-access',
@@ -187,11 +188,20 @@ async function runHookMode(args: string[]): Promise<number> {
 
   try {
     const workspace = flagValue(args, '--workspace');
+    const isolated = hasFlag(args, '--isolated');
     const result = await runHookAttackById(attack.id, {
       ...(workspace ? { workspace } : {}),
-      isolated: hasFlag(args, '--isolated'),
+      isolated,
     });
-    printRuntimeAttackResult(result);
+    printRuntimeAttackResult(result, {
+      ...(isolated
+        ? {}
+        : {
+            livePlaneRoot: workspace
+              ? resolve(resolveProjectRoot(), workspace)
+              : resolveWatchableDemoRoot(),
+          }),
+    });
     saveLastReport(
       join(resolveProjectRoot(), VEYRA_DIR_NAME),
       buildSecurityReportFromRuntimeResult(result),
@@ -214,11 +224,20 @@ async function runLiveRuntimeMode(args: string[]): Promise<number> {
 
   try {
     const workspace = flagValue(args, '--workspace');
+    const isolated = hasFlag(args, '--isolated');
     const result = await runLiveRuntimeAttackById(attack.id, {
       ...(workspace ? { workspace } : {}),
-      isolated: hasFlag(args, '--isolated'),
+      isolated,
     });
-    printRuntimeAttackResult(result);
+    printRuntimeAttackResult(result, {
+      ...(isolated
+        ? {}
+        : {
+            livePlaneRoot: workspace
+              ? resolve(resolveProjectRoot(), workspace)
+              : resolveWatchableDemoRoot(),
+          }),
+    });
     saveLastReport(
       join(resolveProjectRoot(), VEYRA_DIR_NAME),
       buildSecurityReportFromRuntimeResult(result),

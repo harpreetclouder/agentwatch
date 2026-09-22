@@ -217,6 +217,15 @@ export function VeyraLiveConsole({ sessionId }: Props) {
         </div>
       ) : null}
 
+      {session && effectiveMode === 'history' ? (
+        <p className="live-last-run-banner" role="status">
+          Last attack run: {session.task} · {session.securityState}
+          {session.status === 'ENDED' || session.status === 'IDLE'
+            ? ` · ${session.status}`
+            : ''}
+        </p>
+      ) : null}
+
       <div className="split-frame">
         <aside className="split-stream">
           <div className="split-stream-head">
@@ -227,9 +236,21 @@ export function VeyraLiveConsole({ sessionId }: Props) {
               Waiting for events…
               <span className="split-waiting-sub">
                 Idle tail on the local .veyra plane (prefers{' '}
-                <Mono>examples/real-agent-demo</Mono>). Run a live agent or
-                runtime attack against that workspace to stream PreToolUse
-                decisions here. Temp product-demo workspaces are not visible.
+                <Mono>examples/real-agent-demo</Mono>).
+                {hasHistory ? (
+                  <>
+                    {' '}
+                    A recent attack may already be stored — click Show history to
+                    review it.
+                  </>
+                ) : (
+                  <>
+                    {' '}
+                    Run a live agent or runtime attack against that workspace to
+                    stream PreToolUse decisions here. Temp product-demo
+                    workspaces are not visible.
+                  </>
+                )}
               </span>
             </p>
           ) : activity.length === 0 ? (

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   canonicalizePath,
+  extractPathCandidates,
   isPathAllowed,
   isPathDenied,
   isPathInside,
@@ -13,6 +14,8 @@ import {
 } from '../src/paths.js';
 import { classifySecurityPlanePath } from '../src/classify/security-plane.js';
 import { classifySecretPath } from '../src/classify/secrets.js';
+import { createAgentEvent } from '@veyra/agent-events';
+import { createId } from '@veyra/shared';
 
 describe('path authorization', () => {
   it('does not treat similar directory names as inside', () => {
@@ -161,5 +164,49 @@ describe('security plane path classification', () => {
     expect(classifySecurityPlanePath('.veyra-backup/config.json', '/repo')).toBeNull();
     expect(classifySecurityPlanePath('docs/foo.veyra.md', '/repo')).toBeNull();
     expect(classifySecurityPlanePath('notjev/config.json', '/repo')).toBeNull();
+  });
+});
+
+describe('extractPathCandidates', () => {
+  it('uses Edit file_path but ignores old_string/new_string content mentioning .env/password', () => {
+    const event = createAgentEvent({
+      id: createId('evt'),
+      sessionId: 'sess_test',
+      agentId: 'agent_test',
+      type: 'file_write',
+      action: {
+        name: 'edit_file',
+        target: '/repo/src/auth.ts',
+        arguments: {
+          file_path: '/repo/src/auth.ts',
+          old_string:
+            "/**\n * password from project `.env` file\n */\nconst expectedPassword = 'UNCONFIGURED_LOCAL_PASSWORD';\n",
+          new_string:
+            "const expectedPassword = process.env.DEMO_DATABASE_PASSWORD;\n",
+        },
+      },
+      context: { cwd: '/repo' },
+    });
+    const paths = extractPathCandidates(event);
+    expect(paths).toContain('/repo/src/auth.ts');
+    expect(paths.some((p) => p.includes('password') || p.includes('.env'))).toBe(false);
+    expect(classifySecretPath('/repo/src/auth.ts')).toBeNull();
+  });
+
+  it('still extracts .env from shell command tokens', () => {
+    const event = createAgentEvent({
+      id: createId('evt'),
+      sessionId: 'sess_test',
+      agentId: 'agent_test',
+      type: 'shell',
+      action: {
+        name: 'bash',
+        target: 'cat .env',
+        arguments: { command: 'cat .env' },
+      },
+      context: { cwd: '/repo' },
+    });
+    const paths = extractPathCandidates(event);
+    expect(paths).toContain('.env');
   });
 });

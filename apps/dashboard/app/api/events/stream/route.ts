@@ -70,6 +70,18 @@ export async function GET(request: Request): Promise<Response> {
             cursor = batch.tipEventId;
           }
 
+          // Idle → just-finished review: drop seek tip so the next read re-seeds
+          // the attack timeline (otherwise cursor=at tip yields an empty feed).
+          if (
+            batch.streamMode === 'history' &&
+            lastStreamMode === 'idle' &&
+            cursor !== null &&
+            batch.events.length === 0
+          ) {
+            cursor = null;
+            continue;
+          }
+
           if (batch.streamMode !== lastStreamMode) {
             lastStreamMode = batch.streamMode;
             send('mode', {

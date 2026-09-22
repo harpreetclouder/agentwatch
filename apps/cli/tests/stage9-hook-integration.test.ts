@@ -76,6 +76,7 @@ describe('Stage 9 Level 2 — hook integration + fail-closed', () => {
     expect(deny!.permissionDecisionReason).toMatch(/policy=SECRET_ACCESS/);
     expect(result.stdout).not.toContain('veyra_fake_key');
     expect(result.stdout).not.toContain('veyra_fake_token_only');
+    expect(result.stdout).not.toContain('local_demo_db_pw_7f3a');
     expect(result.stdout).not.toContain('fake_password');
   });
 

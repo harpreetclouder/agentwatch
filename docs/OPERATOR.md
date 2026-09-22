@@ -100,10 +100,24 @@ pnpm --filter @veyra/dashboard dev
 ```
 
 **VEYRA LIVE (Live Session):** Agent / Session / Task · State ladder · Activity tail · Incident · Evidence.  
-Idle-tail + **Show history** (Kafka/Datadog style) — does not sticky last ENDED run as “current”.  
+Idle-tail + **Show history** (Kafka/Datadog style). Live stream quiets after ~2 min without events; the **latest attack stays auto-visible ~10 min** as a “Previous run” review (banner), then returns to idle — not sticky forever.  
 Poll/SSE ~500ms. Never shows secret contents.
 
 **Plane:** prefers `examples/real-agent-demo/.veyra` when present (`VEYRA_PROJECT_ROOT` override).
+
+### See the attack on LIVE
+
+1. Start the dashboard (`pnpm --filter @veyra/dashboard dev`) and open http://localhost:3100/live.
+2. In another terminal run `pnpm veyra attack --mode=runtime` (or `--mode=hook`).
+3. CLI prints at **start and end**:
+
+```
+Watch LIVE: http://localhost:3100/live
+Plane: …/examples/real-agent-demo/.veyra
+```
+
+4. During the run: LIVE streams PreToolUse / BLOCK.  
+   After CONTAINED: keep LIVE open or reopen within ~10 min — the last run auto-surfaces with a **Last attack run** banner (or click **Show history** anytime).
 
 ### Watch an attack on LIVE
 
@@ -120,13 +134,6 @@ Terminal B — hook or runtime attack (writes the watchable plane by default):
 pnpm veyra attack --mode=hook
 # or: pnpm veyra attack --mode=runtime
 # or: pnpm veyra demo
-```
-
-CLI prints at start:
-
-```
-Watch LIVE: http://localhost:3100/live
-Plane: …/examples/real-agent-demo/.veyra
 ```
 
 Events stream from real SQLite (idle-tail semantics — no faked dashboard events).  

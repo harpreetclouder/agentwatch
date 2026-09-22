@@ -19,15 +19,23 @@ export type {
   RuntimeAttackProof,
   RuntimeAttackProofGate,
   RuntimeAttackProofObservables,
+  RuntimeOutcome,
+  RuntimeTimelineStep,
 } from './runtime-proof.js';
 
 export {
   RUNTIME_ATTACK_PROOF_GATE_KEYS,
   RUNTIME_ATTACK_PROOF_GATE_LABELS,
+  RUNTIME_OUTCOME_LABELS,
+  RUNTIME_SYNTHETIC_SECRET,
   buildRuntimeAttackProof,
   emptyRuntimeAttackProof,
   formatRuntimeProofGateLines,
+  formatRuntimeTimelineLines,
+  haystackContainsRuntimeSecret,
   isRuntimeAttackContained,
+  resolveRuntimeOutcome,
+  runtimeOutcomeTallies,
   runtimeProofToChecks,
 } from './runtime-proof.js';
 

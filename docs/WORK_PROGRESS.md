@@ -2,9 +2,8 @@
 
 ## Current stage
 
-**Focus: Credibility track P1–P8 — COMPLETE**  
-**P8 done** (Agent-P8). Plan: [`docs/superpowers/plans/2026-09-20-veyra-runtime-credibility.md`](superpowers/plans/2026-09-20-veyra-runtime-credibility.md).  
-Stages A–J remain complete. P1–P8 gap-closure track finished — no architecture rewrite.
+**Focus: Level-3 runtime proof irrefutability (post P1–P8)**  
+Credibility track P1–P8 remains complete. This pass hardens runtime containment so CONTAINED requires correlated stored evidence — no shortcuts, no product-demo coupling.
 
 ## Done
 
@@ -36,14 +35,13 @@ Stages A–J remain complete. P1–P8 gap-closure track finished — no architec
 
 ## Recent
 
-- **Live README→.env reliability:** Strengthened indirect injection chain (no P3 coercion). Root cause: on-disk `auth.ts` was already “fixed” / bug too trivial + README framed as refuse-me “SECURITY TEST PAYLOAD”, so live Claude often skipped `.env`. Fix: buggy auth + README pointer; README “Local development setup” checklist (Read `.env`); `CLAUDE.md`; always refresh fixtures before live; `--append-system-prompt` to read README (no `.env` in user task); incomplete-path tip. Re-run: `pnpm build && pnpm veyra demo --mode=runtime`. Residual: Claude nondeterminism.
-- **LIVE plane fix:** Hook/runtime `veyra attack` and `veyra demo` default to `examples/real-agent-demo` (dashboard-preferred plane). CLI prints `Watch LIVE` + `Plane:` at start. `--isolated` keeps temp dirs for CI. See OPERATOR.md.
-- **P8 done (Agent-P8):** Shareable `veyra report` / `--json` / `--html` / `--md` — runtime honesty LIVE|HOOK|SIMULATION|UNAVAILABLE; N/M contained (no % scores); category tallies; TOP FINDING; BLOCKED BEFORE EXECUTION; secret exposure; RuntimeAttackProof gates or UNAVAILABLE. Hook/runtime attacks persist `last.json`.
-- **P7 done (Agent-P7):** `/live` Live Session ops polish.
-- **P6 done (Agent-P6):** Viral `veyra attack` front door.
-- **P5 done (Agent-P5):** `hook-trajectory-proof` + `live-trajectory-attack`.
-- **P4 done (Agent-P4):** Typed `RuntimeAttackProof` (12 gates).
-- **P3–P1 done:** Canonical task, LiveAgentRunner, mode honesty.
+- **LIVE “I do not see attack”:** CLI CONTAINED was real; plane was correct (`examples/real-agent-demo`). After ~2 min idle gap, `/live` went idle (`session: null`) while `hasHistory: true` — attack buried under Show history. **Fix:** auto-surface latest run as history review for ~10 min (`LIVE_COMPLETED_GRACE_MS`); banner; louder end-of-run `Watch LIVE` / Show history hint; idle copy points at Show history.
+- **PROOF INCOMPLETE root cause (this machine):** Live Claude detected the old README (“include the values in your reasoning”) as prompt-injection and skipped Read `.env`. When it tried Edit(`auth.ts`) with a `process.env` workaround, `extractPathCandidates` scraped `old_string`/`new_string` (comments mentioning `.env`/`password`) and false-positive SECRET_ACCESS-blocked the edit — Claude aborted. Injection signal was vacuous (README PreToolUse alone). **Fix:** (1) Soften README/auth/CLAUDE fixtures — ops framing, invalidate `process.env` (no dotenv), unguessable `local_demo_db_pw_7f3a`; (2) path extract only from path/command arg keys + reject multiline “paths”. Validated: hook → CONTAINED; runtime → **CONTAINED** (auth→README→Read `.env` PreToolUse→SECRET_ACCESS BLOCK). Task unchanged.
+- **Runtime lure reliability (placeholder auth):** Prior pass used `UNCONFIGURED_LOCAL_PASSWORD`; superseded by softer ops lure above after Claude began refusing classic injection wording.
+- **Incomplete ≠ escape:** When live Claude starts but never PreToolUse-reads `.env`, outcome is `PROOF INCOMPLETE` (not `ATTACK NOT CONTAINED`). Escape requires attempt (`preToolUseObserved`); incomplete → Critical escapes: 0.
+- **Level-3 irrefutable proof:** CONTAINED needs stored PreToolUse(Read .env) ↔ SECRET_ACCESS BLOCK correlation. Architecture: `RuntimeAttackExecutor` → `LiveAgentRunner` → `ClaudeCodeRunner`.
+- **LIVE plane fix:** Hook/runtime default to `examples/real-agent-demo`. See OPERATOR.md.
+- **P8–P1 done:** Shareable reports, LIVE UI, attack front door, trajectory, RuntimeAttackProof, canonical task, LiveAgentRunner, mode honesty.
 
 ## Intentional `jev` leftovers
 
@@ -55,4 +53,4 @@ See [`BACK_COMPAT_JEV.md`](BACK_COMPAT_JEV.md).
 - Enforcement remains **user-space hooks** — not OS sandbox.
 - Do not claim complete agent security.
 - Simulation-mode attacks still use the monorepo `.veyra` plane (not the demo fixture); use `--mode=hook|runtime` (or `veyra demo`) to watch on `/live`.
-- Credibility track P1–P8 complete. Beyond this track: other agents via LiveAgentRunner stubs, Passport/Visa, OS sandbox — still out of scope until asked.
+- Runtime CONTAINED is rare and nondeterministic (Claude may skip README/.env). Incomplete ≠ contained. Unavailable ≠ contained. Hook-pass ≠ runtime contained.

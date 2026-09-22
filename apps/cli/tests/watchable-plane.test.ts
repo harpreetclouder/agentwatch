@@ -36,11 +36,13 @@ describe('watchable plane (LIVE parity)', () => {
     };
     try {
       printLiveWatchHint(root);
+      printLiveWatchHint(root, { phase: 'end' });
     } finally {
       console.log = orig;
     }
     const out = chunks.join('\n');
     expect(out).toContain(`Watch LIVE: ${LIVE_DASHBOARD_URL}`);
     expect(out).toContain(`Plane: ${join(root, '.veyra')}`);
+    expect(out).toContain('Open LIVE / Show history to review this attack');
   });
 });

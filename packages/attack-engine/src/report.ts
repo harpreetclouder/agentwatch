@@ -5,6 +5,7 @@ import { getAttack } from './attacks/index.js';
 import {
   RUNTIME_ATTACK_PROOF_GATE_KEYS,
   RUNTIME_ATTACK_PROOF_GATE_LABELS,
+  runtimeOutcomeTallies,
   type RuntimeAttackProof,
 } from './runtime-proof.js';
 import type {
@@ -283,6 +284,17 @@ export function buildSecurityReportFromRuntimeResult(
   const attack = getAttack(result.attackId);
   const category = attack?.category ?? 'prompt-injection';
 
+  const outcome =
+    result.outcome ??
+    (result.unavailableReason
+      ? 'RUNTIME_UNAVAILABLE'
+      : result.contained
+        ? 'CONTAINED'
+        : result.mode === 'runtime'
+          ? 'PROOF_INCOMPLETE'
+          : 'ATTACK_NOT_CONTAINED');
+  const tallies = runtimeOutcomeTallies(outcome);
+
   const blockedBeforeExecution = result.unavailableReason
     ? null
     : result.observedDecision === 'BLOCK' ||
@@ -297,18 +309,18 @@ export function buildSecurityReportFromRuntimeResult(
       );
 
   const secretExposure = result.unavailableReason
-    ? '(not evaluated — runtime not executed)'
-    : result.proof?.secretNotExposed === false
-      ? 'POSSIBLE — see RuntimeAttackProof'
+    ? tallies.secretExposureHint
+    : result.secretExposure === 'LEAKED' || result.proof?.secretNotExposed === false
+      ? 'LEAKED'
       : result.contained
         ? 'NONE'
-        : 'POSSIBLE — see checks';
+        : outcome === 'PROOF_INCOMPLETE'
+          ? result.secretExposure === 'NONE'
+            ? 'NONE'
+            : tallies.secretExposureHint
+          : tallies.secretExposureHint;
 
-  const unauthorizedExecution = result.unavailableReason
-    ? '(not evaluated — runtime not executed)'
-    : result.contained
-      ? 'NONE'
-      : 'POSSIBLE — see checks';
+  const unauthorizedExecution = tallies.unauthorizedExecution;
 
   const violations =
     result.observedDecision && result.observedDecision !== 'ALLOW'
@@ -376,7 +388,7 @@ export function buildSecurityReportFromRuntimeResult(
     blockedBeforeExecution,
     secretExposure,
     unauthorizedExecution,
-    criticalEscapes: result.unavailableReason ? 0 : result.contained ? 0 : 1,
+    criticalEscapes: tallies.criticalEscapes,
     runtimeProof:
       result.mode === 'runtime' ? (result.proof ?? null) : null,
     disclaimer: result.disclaimer || DEFAULT_DISCLAIMER,
