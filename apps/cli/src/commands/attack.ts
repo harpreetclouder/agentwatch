@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   buildSecurityReportFromRuntimeResult,
@@ -203,7 +203,7 @@ async function runHookMode(args: string[]): Promise<number> {
           }),
     });
     saveLastReport(
-      join(resolveProjectRoot(), VEYRA_DIR_NAME),
+      reportPlaneRoots({ ...(workspace ? { workspace } : {}), isolated }),
       buildSecurityReportFromRuntimeResult(result),
     );
     return result.contained ? 0 : 1;
@@ -239,7 +239,7 @@ async function runLiveRuntimeMode(args: string[]): Promise<number> {
           }),
     });
     saveLastReport(
-      join(resolveProjectRoot(), VEYRA_DIR_NAME),
+      reportPlaneRoots({ ...(workspace ? { workspace } : {}), isolated }),
       buildSecurityReportFromRuntimeResult(result),
     );
     if (result.unavailableReason) {
@@ -293,7 +293,7 @@ async function runSimulationMode(
     const tally = tallyAttackResults(summary.results);
     printContainedSummary(tally);
 
-    saveLastReport(rootDir, report);
+    saveLastReport([rootDir], report);
     printAttackLabFooter(options.ci ? { ci: true } : undefined);
 
     return tally.containedCount === tally.totalCount ? 0 : 1;
@@ -302,14 +302,68 @@ async function runSimulationMode(
   }
 }
 
-function saveLastReport(securityPlaneRoot: string, report: SecurityReport): void {
-  const reportsDir = join(securityPlaneRoot, 'reports');
-  mkdirSync(reportsDir, { recursive: true });
-  writeFileSync(join(reportsDir, 'last.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  writeFileSync(join(reportsDir, 'last.txt'), formatExplainReport(report), 'utf8');
+/**
+ * Planes that receive last.json.
+ * Always the project `.veyra` so `veyra report` works with no flags.
+ * Hook/runtime also copy onto the watchable demo plane (unless --isolated).
+ */
+function reportPlaneRoots(options: { workspace?: string; isolated: boolean }): string[] {
+  const project = join(resolveProjectRoot(), VEYRA_DIR_NAME);
+  if (options.isolated) return [project];
+  const ws = options.workspace
+    ? resolve(resolveProjectRoot(), options.workspace)
+    : resolveWatchableDemoRoot();
+  const plane = join(ws, VEYRA_DIR_NAME);
+  return resolve(plane) === resolve(project) ? [project] : [project, plane];
 }
 
+function saveLastReport(securityPlaneRoots: string[], report: SecurityReport): void {
+  const seen = new Set<string>();
+  const written: string[] = [];
+  for (const plane of securityPlaneRoots) {
+    const resolved = resolve(plane);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    const reportsDir = join(resolved, 'reports');
+    mkdirSync(reportsDir, { recursive: true });
+    const file = join(reportsDir, 'last.json');
+    writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+    writeFileSync(join(reportsDir, 'last.txt'), formatExplainReport(report), 'utf8');
+    written.push(file);
+  }
+  const primary = lastReportPath();
+  console.log(`Report: ${primary}`);
+  for (const file of written) {
+    if (resolve(file) !== resolve(primary)) {
+      console.log(`Report copy: ${file}`);
+    }
+  }
+}
+
+/** Candidate last.json paths: project plane, then examples/real-agent-demo plane. */
+export function lastReportCandidates(cwd: string = process.cwd()): string[] {
+  const project = join(resolveProjectRoot(cwd), VEYRA_DIR_NAME, 'reports', 'last.json');
+  const demo = join(resolveWatchableDemoRoot(cwd), VEYRA_DIR_NAME, 'reports', 'last.json');
+  return resolve(project) === resolve(demo) ? [project] : [project, demo];
+}
+
+/**
+ * Path `veyra report` reads. Newest artifact wins so a runtime run on the
+ * demo plane beats a stale simulation report (and the reverse).
+ */
 export function lastReportPath(cwd: string = process.cwd()): string {
-  const projectRoot = resolveProjectRoot(cwd);
-  return join(projectRoot, VEYRA_DIR_NAME, 'reports', 'last.json');
+  const candidates = lastReportCandidates(cwd);
+  const existing = candidates.filter((path) => existsSync(path));
+  if (existing.length === 0) {
+    return candidates[0]!;
+  }
+  const demo = candidates[1];
+  existing.sort((a, b) => {
+    const delta = statSync(b).mtimeMs - statSync(a).mtimeMs;
+    if (delta !== 0) return delta;
+    if (demo && resolve(a) === resolve(demo)) return -1;
+    if (demo && resolve(b) === resolve(demo)) return 1;
+    return 0;
+  });
+  return existing[0]!;
 }

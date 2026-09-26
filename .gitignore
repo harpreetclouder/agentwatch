@@ -15,4 +15,6 @@ coverage
 *.jev-backup*
 *.tsbuildinfo
 .pnpm-store
+apps/dashboard/test-results/
+apps/dashboard/playwright-report/
 .superpowers/

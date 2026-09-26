@@ -55,6 +55,7 @@ export {
   formatReportHtml,
   formatReportMarkdown,
   honestyFromMode,
+  shareableSecretExposure,
 } from './report.js';
 
 export {

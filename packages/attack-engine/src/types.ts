@@ -94,7 +94,7 @@ export interface AttackRunSummary {
 }
 
 /** Honest operator label — never upgrades mode (P8 shareable reports). */
-export type RuntimeHonesty = 'LIVE' | 'HOOK' | 'SIMULATION' | 'UNAVAILABLE';
+export type RuntimeHonesty = 'RUNTIME' | 'HOOK' | 'SIMULATION' | 'RUNTIME UNAVAILABLE';
 
 export type ReportTestResult = {
   id: string;
@@ -149,9 +149,15 @@ export interface SecurityReport {
   summaryLine: string;
   /** Attack lab mode that produced this report — never upgraded. */
   mode?: AttackMode;
-  /** LIVE | HOOK | SIMULATION | UNAVAILABLE — shareable honesty banner. */
+  /** RUNTIME | HOOK | SIMULATION | RUNTIME UNAVAILABLE — shareable honesty banner. */
   runtimeHonesty?: RuntimeHonesty;
-  /** Set when LIVE runtime was requested but not executed. */
+  /** Honest lab outcome. Incomplete and unavailable are never CONTAINED. */
+  outcome?: RuntimeOutcome;
+  /** Headline attack name (e.g. Prompt Injection → Secret Access). */
+  attackName?: string;
+  /** Runtime timeline from stored events (empty for hook/simulation). */
+  runtimeTimeline?: RuntimeTimelineStep[];
+  /** Set when runtime was requested but Claude did not run. */
   unavailableReason?: string | null;
   /** Per-test contained/not-contained rows. */
   tests?: ReportTestResult[];

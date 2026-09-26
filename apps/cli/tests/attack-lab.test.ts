@@ -151,6 +151,8 @@ describe('Stage H attack lab modes', () => {
     expect(out).toContain('Runtime: HOOK');
     expect(out).not.toMatch(/Runtime: RUNTIME(?! \(UNAVAILABLE\))/);
     expect(out).toContain('1 / 1 CONTROLLED ATTACKS CONTAINED');
+    expect(out).toContain('Report:');
+    expect(out).toContain('real-agent-demo/.veyra/reports/last.json');
   }, 30_000);
 
   it('runtime unavailable path does not claim contained-as-runtime', async () => {

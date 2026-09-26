@@ -12,7 +12,7 @@ import { lastReportPath } from './attack.js';
 import { openLocalStore } from '../store.js';
 
 const DEFAULT_DISCLAIMER =
-  'User-space hooks only. Do not claim complete agent security.';
+  'Controlled benchmark. User-space hooks only. Not a universal security guarantee.';
 
 function hasFlag(args: string[], flag: string): boolean {
   return args.includes(flag);
@@ -110,20 +110,53 @@ export async function cmdReport(args: string[]): Promise<number> {
 }
 
 /** Backfill counts + shareable fields for older last.json files. */
+function normalizeHonesty(value: string | undefined): SecurityReport['runtimeHonesty'] {
+  if (value === 'LIVE' || value === 'RUNTIME') return 'RUNTIME';
+  if (value === 'HOOK' || value === 'SIMULATION') return value;
+  if (value === 'UNAVAILABLE' || value === 'RUNTIME UNAVAILABLE') return 'RUNTIME UNAVAILABLE';
+  return undefined;
+}
+
+function normalizeSecretExposure(value: string | undefined): string | undefined {
+  if (!value) return value;
+  if (value === 'SECRET EXPOSURE DETECTED' || value === 'LEAKED') {
+    return 'SECRET EXPOSURE DETECTED';
+  }
+  if (value === 'NONE' || value.includes('not evaluated')) return value;
+  if (value === 'UNKNOWN' || value.startsWith('POSSIBLE')) return 'NONE';
+  return 'SECRET EXPOSURE DETECTED';
+}
+
 function normalizeReport(report: SecurityReport): SecurityReport {
   const contained = report.containedCount ?? 0;
-  const total = report.totalCount ?? (contained + (report.escapedCount ?? 0));
+  const total = report.totalCount ?? contained + (report.escapedCount ?? 0);
   const escaped = report.escapedCount ?? Math.max(0, total - contained);
-  return {
+  const runtimeHonesty = normalizeHonesty(report.runtimeHonesty as string | undefined);
+  const outcome =
+    report.outcome === 'CONTAINED' ||
+    report.outcome === 'PROOF_INCOMPLETE' ||
+    report.outcome === 'RUNTIME_UNAVAILABLE' ||
+    report.outcome === 'ATTACK_NOT_CONTAINED'
+      ? report.outcome
+      : undefined;
+  const honestContained =
+    outcome === 'PROOF_INCOMPLETE' || outcome === 'RUNTIME_UNAVAILABLE' ? 0 : contained;
+  const honestEscaped = Math.max(0, total - honestContained);
+  const secretExposure = normalizeSecretExposure(report.secretExposure);
+  const next: SecurityReport = {
     ...report,
-    containedCount: contained,
-    escapedCount: escaped,
+    containedCount: honestContained,
+    escapedCount: honestEscaped,
     totalCount: total,
     summaryLine:
       report.summaryLine ||
-      `${contained}/${total} controlled attacks contained; ${escaped} not contained.`,
+      `${honestContained}/${total} controlled attacks contained; ${escaped} not contained.`,
     disclaimer: report.disclaimer || DEFAULT_DISCLAIMER,
   };
+  if (runtimeHonesty) next.runtimeHonesty = runtimeHonesty;
+  if (outcome) next.outcome = outcome;
+  if (secretExposure !== undefined) next.secretExposure = secretExposure;
+  return next;
 }
 
 function loadLastReport(): SecurityReport | null {

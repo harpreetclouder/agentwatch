@@ -59,6 +59,7 @@ export function printHelp(): void {
   console.log('  attack       Attack lab — test whether your agent can be compromised');
   console.log('  demo         Product narrative demo (hooks + optional live Claude)');
   console.log('  report       Security report [--json|--md|--html] (counts, not scores)');
+  console.log('  eval         Verify use cases (CI-safe; --ui and --live are optional)');
   console.log('  explain      Show session incident timeline or last attack report');
   console.log('  status       Show session / enforcement status');
   console.log('  events       List normalized agent events');
@@ -71,6 +72,7 @@ export function printHelp(): void {
   console.log('');
   console.log('Front door:  veyra attack');
   console.log('CI:          veyra attack --ci');
+  console.log('Eval:        veyra eval [--ui] [--live]');
   console.log('Product:     veyra demo');
   console.log('Core thesis: a jailbreak should never become authority.');
   console.log('Enforcement: user-space hooks — not an OS sandbox.');
@@ -141,14 +143,34 @@ export function printCommandHelp(command: string): boolean {
       console.log('If Claude Code is unavailable, product mode prints REAL RUNTIME UNAVAILABLE');
       console.log('and runs the deterministic hook test (never labeled as runtime).');
       break;
+    case 'eval':
+      console.log('Usage: veyra eval [--ui] [--live]');
+      console.log('');
+      console.log('Run the use-case checklist against existing tests.');
+      console.log('Default is CI-safe: no Playwright browser and no Claude.');
+      console.log('--ui     After the checklist, verify /live and the HTML report with Playwright.');
+      console.log('         Does not require Claude. Starts the dashboard on a free port.');
+      console.log('--live   Attempt the real Claude runtime case (l3-live-claude).');
+      console.log('         Missing CLI or auth: SKIPPED (not containment), exit 0 for that case.');
+      console.log('         CONTAINED only when every runtime proof gate passes.');
+      console.log('         PROOF INCOMPLETE passes as an honesty check, not as CONTAINED.');
+      console.log('         ATTACK NOT CONTAINED fails.');
+      console.log('Flags are independent. VEYRA_RUNTIME_TESTS=1 also enables the live case.');
+      console.log('Hook protocol success is not a runtime containment result.');
+      console.log('Writes .veyra/reports/eval.json (id, layer, status, requirement; no secrets).');
+      console.log('Exits non-zero when a required case fails.');
+      break;
     case 'report':
       console.log('Usage: veyra report [--json|--md|--html] [--out=<path>]');
       console.log('');
-      console.log('Shareable security report from the last attack/session.');
-      console.log('Shows mode honesty (LIVE|HOOK|SIMULATION|UNAVAILABLE), N/M contained,');
-      console.log('category tallies, TOP FINDING, BLOCKED BEFORE EXECUTION, secret exposure.');
-      console.log('Runtime runs include RuntimeAttackProof gates (or UNAVAILABLE).');
-      console.log('Concrete counts only — never % "secure" scores or secret values.');
+      console.log('Shareable security report from the last attack (no extra flags).');
+      console.log('Reads the newest .veyra/reports/last.json');
+      console.log('  (repo plane, or examples/real-agent-demo when that run is newer).');
+      console.log('Mode honesty: RUNTIME | HOOK | SIMULATION | RUNTIME UNAVAILABLE');
+      console.log('Outcome: CONTAINED | PROOF INCOMPLETE | RUNTIME UNAVAILABLE | ATTACK NOT CONTAINED');
+      console.log('Runtime runs include timeline + all RuntimeAttackProof gates.');
+      console.log('Concrete N/M counts — never % scores, never "agent is secure", never secret values.');
+      console.log('Secret exposure: NONE or SECRET EXPOSURE DETECTED.');
       break;
     case 'explain':
       console.log('Usage: veyra explain [<session-id>]');

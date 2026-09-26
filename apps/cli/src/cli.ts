@@ -12,6 +12,7 @@ import { cmdHook } from './commands/hook.js';
 import { cmdQuarantine, cmdResume } from './commands/enforcement.js';
 import { cmdDemo } from './commands/demo.js';
 import { cmdReport } from './commands/report.js';
+import { cmdEval } from './commands/eval.js';
 
 export async function runCli(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -58,6 +59,8 @@ export async function runCli(argv: string[]): Promise<number> {
       return cmdDemo(rest);
     case 'report':
       return cmdReport(rest);
+    case 'eval':
+      return cmdEval(rest);
     case 'quarantine':
       return cmdQuarantine(rest);
     case 'resume':
